@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LiquidGlass UI — Web Components 演示</title>
+<title>LiquidGlass UI — Web Components 演示（增强版）</title>
 <style>
   body {
     margin: 0;
@@ -11,40 +11,32 @@
     background: linear-gradient(120deg, #ff6ec4, #7873f5, #4ade80, #38bdf8);
     background-size: 300% 300%;
     animation: bg 18s ease infinite;
-    padding: 40px 20px 100px;
+    padding: 40px 20px 140px;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Microsoft YaHei", sans-serif;
     color: #fff;
   }
-  @keyframes bg {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
+  @keyframes bg { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
   .wrap { max-width: 960px; margin: 0 auto; }
   h1 { font-size: 28px; font-weight: 600; text-shadow: 0 1px 8px rgba(0,0,0,0.2); }
   .sub { color: rgba(255,255,255,0.72); margin-bottom: 40px; }
-  h2 {
-    font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em;
-    color: rgba(255,255,255,0.72); margin: 40px 0 14px; font-weight: 600;
-  }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.72); margin: 40px 0 14px; font-weight: 600; }
   .row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-  .glass-box {
-    background: rgba(255,255,255,0.12);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255,255,255,0.35);
+
+  /* 雨滴层容器示例：相对定位 + 高度 */
+  .rain-box {
+    position: relative;
     border-radius: 20px;
-    padding: 22px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255,255,255,0.6);
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    overflow: hidden;
+    height: 320px;
   }
-  .glass-box .field { display: flex; flex-direction: column; gap: 6px; }
-  .glass-box label { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.72); }
-  lg-tab { display: inline-block; }
-  lg-toast { margin-bottom: 10px; }
+  /* 光栅层容器示例 */
+  .grating-box {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    min-height: 180px;
+  }
   pre {
     background: rgba(0,0,0,0.25);
     padding: 12px 14px;
@@ -55,37 +47,26 @@
     white-space: pre-wrap;
     word-break: break-all;
   }
+  lg-tab { display: inline-block; }
+  lg-card, lg-stat { display: block; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>◈ LiquidGlass UI — Web Components</h1>
-  <p class="sub">原生 Custom Elements：无框架、零依赖、Shadow DOM 隔离。直接 <code>&lt;lg-xxx&gt;</code> 使用。</p>
+  <h1>◈ LiquidGlass UI — Web Components（增强版）</h1>
+  <p class="sub">可拉伸组件 + 雨滴效果 + 数列光栅 + 全局控制面板。右下角控制面板实时调控。</p>
 
-  <!-- ================= BUTTON ================= -->
-  <h2>按钮 &lt;lg-button&gt;</h2>
-  <div class="row">
-    <lg-button variant="primary">主要按钮</lg-button>
-    <lg-button>默认按钮</lg-button>
-    <lg-button variant="success">成功</lg-button>
-    <lg-button variant="warning">警告</lg-button>
-    <lg-button variant="danger">危险</lg-button>
-    <lg-button variant="ghost">幽灵</lg-button>
-    <lg-button size="sm">小号</lg-button>
-    <lg-button size="lg">大号</lg-button>
-    <lg-button disabled>禁用</lg-button>
-  </div>
-
-  <!-- ================= CARD ================= -->
-  <h2>卡片 &lt;lg-card&gt;</h2>
+  <!-- ================= RESIZABLE ================= -->
+  <h2>可拉伸组件 &lt;lg-card resizable&gt; / &lt;lg-stat resizable&gt;</h2>
   <div class="grid">
-    <lg-card>
-      <h3 style="margin:0 0 8px;font-size:16px;">云同步</h3>
+    <lg-card resizable>
+      <h3 style="margin:0 0 8px;font-size:16px;">云同步（可拉伸）</h3>
       <p style="margin:0;font-size:13.5px;color:rgba(255,255,255,0.72);line-height:1.5;">
-        数据实时折射到每台设备，包裹在柔和的磨砂层中。
+        拖拽右下角调整大小。数据实时折射到每台设备，包裹在柔和的磨砂层中。
       </p>
     </lg-card>
-    <lg-card>
+    <lg-stat resizable label="月活跃用户" value="128,493" delta="+12.5%" trend="up"></lg-stat>
+    <lg-card resizable>
       <h3 style="margin:0 0 8px;font-size:16px;">隐私保护</h3>
       <p style="margin:0;font-size:13.5px;color:rgba(255,255,255,0.72);line-height:1.5;">
         端到端加密。玻璃之后，只有你选择展示的内容。
@@ -93,73 +74,55 @@
     </lg-card>
   </div>
 
-  <!-- ================= FORM ================= -->
-  <h2>表单 &lt;lg-input&gt; / &lt;lg-select&gt; / &lt;lg-switch&gt;</h2>
+  <!-- ================= RAIN ================= -->
+  <h2>雨滴效果 &lt;lg-rain&gt;</h2>
   <div class="grid">
-    <div class="glass-box">
-      <div class="field">
-        <label>姓名</label>
-        <lg-input placeholder="请输入姓名"></lg-input>
-      </div>
-      <div class="field">
-        <label>邮箱（错误态）</label>
-        <lg-input type="email" value="bad@format" error></lg-input>
-      </div>
-      <div class="field">
-        <label>角色</label>
-        <lg-select>
-          <option>设计师</option>
-          <option>前端工程师</option>
-          <option>产品经理</option>
-        </lg-select>
-      </div>
+    <div class="rain-box">
+      <lg-card style="height:100%;display:block;">
+        <h3 style="margin:0 0 8px;font-size:16px;">雨滴卡片</h3>
+        <p style="margin:0;font-size:13.5px;color:rgba(255,255,255,0.72);line-height:1.5;">
+          凝结水珠 + 四边溅水 + 滑落雨滴。
+        </p>
+      </lg-card>
+      <lg-rain density="4"></lg-rain>
     </div>
-    <div class="glass-box">
-      <lg-switch checked>消息通知</lg-switch>
-      <lg-switch>深色模式</lg-switch>
-      <lg-switch checked>自动刷新</lg-switch>
+    <div class="rain-box">
+      <lg-card style="height:100%;display:block;">
+        <h3 style="margin:0 0 8px;font-size:16px;">更多雨滴</h3>
+        <p style="margin:0;font-size:13.5px;color:rgba(255,255,255,0.72);line-height:1.5;">
+          density=6 更密集的滑落与溅水。
+        </p>
+      </lg-card>
+      <lg-rain density="6"></lg-rain>
     </div>
   </div>
 
-  <!-- ================= STAT + PROGRESS ================= -->
-  <h2>指标卡 &amp; 进度 &lt;lg-stat&gt; / &lt;lg-progress&gt;</h2>
-  <div class="grid">
-    <lg-stat label="月活跃用户" value="128,493" delta="+12.5%" trend="up"></lg-stat>
-    <lg-stat label="营收" value="¥86.2万" delta="+8.3%" trend="up"></lg-stat>
-    <lg-stat label="流失率" value="2.1%" delta="-0.4%" trend="down"></lg-stat>
-  </div>
-  <div class="glass-box" style="margin-top:16px;">
-    <lg-progress value="82" size="lg"></lg-progress>
-    <lg-progress value="45"></lg-progress>
-    <lg-progress value="96" size="sm"></lg-progress>
-  </div>
-
-  <!-- ================= TABS + BADGE + TOAST ================= -->
-  <h2>标签 / 徽章 / 提示 &lt;lg-tabs&gt; &lt;lg-badge&gt; &lt;lg-toast&gt;</h2>
-  <div class="glass-box">
-    <lg-tabs>
-      <lg-tab>概览</lg-tab>
-      <lg-tab>图表</lg-tab>
-      <lg-tab>设置</lg-tab>
-    </lg-tabs>
-    <div class="row">
-      <lg-badge variant="accent" dot>在线</lg-badge>
-      <lg-badge variant="success">已通过</lg-badge>
-      <lg-badge variant="warning">待审核</lg-badge>
-      <lg-badge variant="danger">已驳回</lg-badge>
-    </div>
-    <lg-toast type="success">操作已成功完成</lg-toast>
-    <lg-toast type="warning">注意：即将到期</lg-toast>
+  <!-- ================= GRATING ================= -->
+  <h2>数列排布光栅 &lt;lg-grating&gt;（可调控）</h2>
+  <div class="grating-box">
+    <lg-card style="height:100%;display:block;">
+      <h3 style="margin:0 0 8px;font-size:16px;">数列光栅</h3>
+      <p style="margin:0;font-size:13.5px;color:rgba(255,255,255,0.72);line-height:1.5;">
+        色带宽度按 1n、2n、3n… 数列排布（count=7, base=6）。下方控制面板可调间距 / 速度 / 透明度。
+      </p>
+    </lg-card>
+    <lg-grating count="7" base="6" speed="7" opacity="0.45" id="demoGrating"></lg-grating>
   </div>
 
-  <!-- ================= EVENT DEMO ================= -->
+  <!-- ================= EVENTS ================= -->
   <h2>事件 &amp; API</h2>
-  <div class="glass-box">
-    <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.85);">
-      点击按钮 / 切换开关 / 输入文字 → 触发 <code>lg-*</code> 事件并输出：
-    </p>
-    <pre id="eventLog">等待交互…</pre>
+  <div class="rain-box" style="height:auto;min-height:120px;">
+    <lg-card style="height:100%;display:block;">
+      <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.85);">
+        点击按钮 / 切换开关 / 拖拽滑块 → 触发 <code>lg-control</code> 事件：
+      </p>
+      <pre id="eventLog" style="margin-top:10px;">等待交互…</pre>
+    </lg-card>
+    <lg-rain density="2"></lg-rain>
   </div>
+
+  <!-- ================= CONTROLS ================= -->
+  <lg-controls id="demoControls"></lg-controls>
 </div>
 
 <script src="liquidglass-ui.js"></script>
@@ -170,23 +133,32 @@
     log.scrollTop = log.scrollHeight;
   }
 
-  // 监听所有 lg-* 事件
-  document.addEventListener('lg-click', function (e) { out('lg-click on ' + e.target.tagName.toLowerCase()); });
-  document.addEventListener('lg-toggle', function (e) { out('lg-toggle → ' + (e.detail.on ? '开' : '关')); });
-  document.addEventListener('lg-input', function (e) { out('lg-input → ' + e.detail.value); });
-  document.addEventListener('lg-change', function (e) { out('lg-change → ' + e.detail.value); });
-  document.addEventListener('lg-tab-select', function (e) { out('lg-tab-select → ' + e.target.textContent.trim()); });
+  /* 控制面板 → 联动所有雨滴/光栅/水珠 */
+  var rains = Array.prototype.slice.call(document.querySelectorAll('lg-rain'));
+  var grating = document.getElementById('demoGrating');
 
-  // 程序化 API 演示
-  setTimeout(function () {
-    var p = document.querySelector('lg-progress[size="lg"]');
-    var n = 0;
-    setInterval(function () {
-      n = (n + 7) % 101;
-      p.setValue(n);
-      out('progress.setValue(' + n + ')');
-    }, 1500);
-  }, 500);
+  document.getElementById('demoControls').addEventListener('lg-control', function (e) {
+    var k = e.detail.key, v = e.detail.value;
+    out('lg-control → ' + k + ' = ' + v);
+
+    if (k === 'rain') {
+      rains.forEach(function (r) { r.style.display = v ? '' : 'none'; });
+    } else if (k === 'grating') {
+      if (grating) v ? grating.on() : grating.off();
+    } else if (k === 'droplets') {
+      rains.forEach(function (r) {
+        var drops = r.shadowRoot.querySelectorAll('.lg-droplets');
+        drops.forEach(function (d) { d.style.display = v ? '' : 'none'; });
+      });
+    } else if (k === 'spacing' && grating) {
+      grating.setAttribute('base', v);
+      grating._apply();
+    } else if (k === 'speed' && grating) {
+      grating.setSpeed(v);
+    } else if (k === 'opacity' && grating) {
+      grating.setOpacity(v / 100);
+    }
+  });
 </script>
 
 </body>

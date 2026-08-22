@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    LiquidGlass UI — Web Components
    ------------------------------------------------------------
    把 LiquidGlass-UI 的组件封装为原生 Custom Elements。
@@ -781,20 +781,24 @@
   }
 
   /* ============================================================
-     <lg-card>  卡片容器（玻璃 + 内容插槽）
-     用法: <lg-card><h3>标题</h3><p>内容</p></lg-card>
+     <lg-card>  卡片容器（玻璃 + 内容插槽，可拉伸）
+     属性: resizable  启用拉伸（右下角拖拽调整大小）
+     用法: <lg-card resizable><h3>标题</h3><p>内容</p></lg-card>
      ============================================================ */
   class LgCard extends HTMLElement {
     connectedCallback() {
       const sh = this.attachShadow({ mode: 'open' });
+      const resizable = this.hasAttribute('resizable');
+      const rCls = resizable ? ' lg-resizable' : '';
       sh.innerHTML =
         '<style>' + LG_CSS + '</style>' +
-        '<div class="lg-glass lg-card" style="height:100%;">' +
+        '<div class="lg-glass lg-card' + rCls + '" style="height:100%;">' +
         '<span class="lg-droplets" aria-hidden="true">' +
         '  <span class="lg-droplet" style="--x:8%;--y:16%;--s:9px;--d:0s"></span>' +
         '  <span class="lg-droplet" style="--x:28%;--y:72%;--s:7px;--d:1.6s"></span>' +
         '  <span class="lg-droplet" style="--x:82%;--y:26%;--s:8px;--d:2.8s"></span>' +
         '</span>' +
+        (resizable ? '<span class="lg-resize-hint">↘ 拖拽拉伸</span>' : '') +
         '<div class="lg-card__body" style="position:relative;z-index:4;"><slot></slot></div>' +
         '</div>';
     }
@@ -902,8 +906,8 @@
   }
 
   /* ============================================================
-     <lg-stat>  指标卡
-     属性: label  value  delta  trend="up|down"
+     <lg-stat>  指标卡（可拉伸）
+     属性: label  value  delta  trend="up|down"  resizable
      ============================================================ */
   class LgStat extends HTMLElement {
     connectedCallback() {
@@ -911,10 +915,13 @@
       const arrow = trend === 'down' ? '▼' : '▲';
       const trendCls = trend === 'down' ? 'lg-stat__delta--down' : 'lg-stat__delta--up';
       const delta = this.getAttribute('delta');
+      const resizable = this.hasAttribute('resizable');
+      const rCls = resizable ? ' lg-resizable' : '';
       const sh = this.attachShadow({ mode: 'open' });
       sh.innerHTML =
         '<style>' + LG_CSS + '</style>' +
-        '<div class="lg-glass lg-stat">' +
+        '<div class="lg-glass lg-stat' + rCls + '">' +
+        (resizable ? '<span class="lg-resize-hint">↘ 拉伸</span>' : '') +
         '<span class="lg-stat__label">' + (this.getAttribute('label') || '') + '</span>' +
         '<span class="lg-stat__value">' + (this.getAttribute('value') || '') + '</span>' +
         (delta ? '<span class="lg-stat__delta ' + trendCls + '">' + arrow + ' ' + delta + '</span>' : '') +
@@ -1005,6 +1012,318 @@
   }
 
   /* ============================================================
+     增强层：可拉伸 / 雨滴 / 光栅 / 控制面板
+     ============================================================ */
+
+  /* ---------- 追加样式 ---------- */
+  LG_CSS += `
+/* ===== 可拉伸 (Resizable) ===== */
+.lg-resizable { resize: both; overflow: auto; min-width: 200px; min-height: 100px; }
+.lg-resizable::-webkit-resizer {
+  background:
+    linear-gradient(135deg, transparent 0 40%, rgba(255,255,255,0.55) 40% 50%, transparent 50%),
+    linear-gradient(135deg, transparent 0 62%, rgba(255,255,255,0.35) 62% 72%, transparent 72%);
+  border-radius: 0 0 18px 0;
+}
+.lg-resize-hint {
+  position: absolute; bottom: 6px; right: 12px;
+  font-size: 11px; color: rgba(255,255,255,0.45);
+  pointer-events: none; z-index: 5; letter-spacing: 0.02em;
+}
+
+/* ===== 雨滴装饰层 (Rain) ===== */
+.lg-rain {
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 6;
+  overflow: hidden; border-radius: inherit;
+}
+.lg-rain.off { display: none; }
+
+/* 凝结水珠 */
+.lg-rain .lg-droplets { position: absolute; inset: 0; z-index: 3; }
+.lg-rain .lg-droplet { position: absolute; }
+
+/* 滑落雨滴：从顶部滑落，带拖尾 */
+.lg-rain .drip {
+  position: absolute; top: -14%;
+  left: var(--rx, 50%);
+  width: var(--rw, 9px);
+  height: calc(var(--rw, 9px) * 1.6);
+  border-radius: 50% 50% 48% 52% / 62% 62% 38% 38%;
+  background:
+    radial-gradient(circle at 32% 20%, rgba(255,255,255,0.5), rgba(255,255,255,0.12) 20%, transparent 45%),
+    radial-gradient(circle at 68% 85%, rgba(255,255,255,0.16), transparent 35%),
+    radial-gradient(circle at 45% 45%, rgba(200,225,255,0.08), rgba(170,200,240,0.04) 55%, rgba(140,175,225,0.06) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16), inset 0 -3px 5px rgba(255,255,255,0.18), 0 2px 3px rgba(0,0,0,0.14);
+  opacity: 0;
+  animation: rainFall var(--rdur, 5s) cubic-bezier(0.45, 0, 0.8, 1) infinite;
+  animation-delay: var(--rdelay, 0s);
+}
+.lg-rain .drip::after {
+  content: "";
+  position: absolute; top: 60%; left: 40%;
+  width: 12%; height: 70%;
+  border-radius: 999px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.35), rgba(255,255,255,0.06));
+  filter: blur(0.4px);
+}
+@keyframes rainFall {
+  0%   { top: -14%; transform: scale(0.8, 1); opacity: 0; }
+  8%   { opacity: 0.9; }
+  82%  { top: 102%; transform: scale(1, 1.3); opacity: 0.65; }
+  100% { top: 106%; transform: scale(1, 1.3); opacity: 0; }
+}
+
+/* 四边溅水（快速雨滴砸落） */
+.lg-rain .dropper { position: absolute; width: 0; height: 0; }
+.lg-rain .dropper.d-top    { top: 0; left: var(--drp-x, 30%); }
+.lg-rain .dropper.d-bottom { bottom: 0; left: var(--drp-x, 30%); }
+.lg-rain .dropper.d-left   { top: var(--drp-y, 40%); left: 0; }
+.lg-rain .dropper.d-right  { top: var(--drp-y, 40%); right: 0; }
+.lg-rain .drop {
+  position: absolute; width: 8px; height: 11px;
+  border-radius: 50% 50% 48% 52% / 62% 62% 38% 38%;
+  background: radial-gradient(circle at 32% 20%, rgba(255,255,255,0.6), rgba(255,255,255,0.14) 40%, transparent 72%);
+  box-shadow: inset 0 -2px 3px rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.12);
+  opacity: 0;
+  animation-duration: var(--drp-dur, 2s);
+  animation-timing-function: cubic-bezier(0.45, 0, 0.8, 1);
+  animation-iteration-count: infinite;
+  animation-delay: var(--drp-delay, 0s);
+}
+.lg-rain .dropper.d-top .drop,
+.lg-rain .dropper.d-bottom .drop { top: -30px; left: -4px; animation-name: dropFallV; }
+.lg-rain .dropper.d-left .drop,
+.lg-rain .dropper.d-right .drop { top: -5px; left: -30px; animation-name: dropFallH; }
+@keyframes dropFallV {
+  0%   { transform: translateY(0); opacity: 0; }
+  10%  { opacity: 0.9; }
+  70%  { transform: translateY(26px); opacity: 0.9; }
+  76%  { transform: translateY(30px) scale(1.45, 0.55); opacity: 0.85; }
+  84%  { transform: translateY(30px) scale(1.45, 0.5); opacity: 0; }
+  100% { transform: translateY(30px) scale(1.45, 0.5); opacity: 0; }
+}
+@keyframes dropFallH {
+  0%   { transform: translateX(0); opacity: 0; }
+  10%  { opacity: 0.9; }
+  70%  { transform: translateX(26px); opacity: 0.9; }
+  76%  { transform: translateX(30px) scale(0.55, 1.45); opacity: 0.85; }
+  84%  { transform: translateX(30px) scale(0.55, 1.45); opacity: 0; }
+  100% { transform: translateX(30px) scale(0.55, 1.45); opacity: 0; }
+}
+.lg-rain .sp {
+  position: absolute; width: var(--sp-s, 6px);
+  height: calc(var(--sp-s, 6px) * 1.4);
+  border-radius: 62% 38% 55% 45% / 68% 62% 38% 32%;
+  background: radial-gradient(circle at 30% 22%, rgba(255,255,255,0.75), rgba(255,255,255,0.2) 45%, transparent 75%);
+  box-shadow: inset 0 -1px 2px rgba(255,255,255,0.3);
+  opacity: 0;
+  animation: spBurst var(--drp-dur, 2s) ease-out infinite;
+  animation-delay: var(--drp-delay, 0s);
+}
+.lg-rain .dropper.d-top .sp    { top: 22px; left: 0; }
+.lg-rain .dropper.d-bottom .sp { bottom: 22px; left: 0; }
+.lg-rain .dropper.d-left .sp   { top: 0; left: 22px; }
+.lg-rain .dropper.d-right .sp  { top: 0; right: 22px; }
+@keyframes spBurst {
+  0%, 70% { transform: translate(0, 0) scale(1); opacity: 0; }
+  74%     { opacity: 0.9; }
+  90%     { transform: translate(var(--sp-fx, 12px), var(--sp-fy, -26px)) scale(0.4); opacity: 0.45; }
+  100%    { transform: translate(calc(var(--sp-fx, 12px) * 1.6), calc(var(--sp-fy, -26px) * 1.35)) scale(0.12); opacity: 0; }
+}
+@keyframes gratingFlow {
+  0%   { background-position: 0 0; }
+  100% { background-position: 340px 0; }
+}
+
+/* ===== 数列排布光栅 (Grating) ===== */
+.lg-grating {
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 5;
+  mix-blend-mode: screen;
+  opacity: var(--g-opacity, 0.45);
+  transition: opacity 0.4s ease;
+}
+.lg-grating.off { opacity: 0; }
+
+/* ===== 控制面板 (Controls) ===== */
+.lg-controls {
+  position: fixed; bottom: 20px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: min(520px, 92vw);
+  padding: 16px 20px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.lg-controls__title {
+  font-size: 12px; color: rgba(255,255,255,0.6);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+.lg-controls__row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 6px 0;
+}
+.lg-controls__row + .lg-controls__row { border-top: 1px solid rgba(255,255,255,0.12); }
+.lg-controls__row span { font-size: 13.5px; }
+.lg-controls__slider {
+  flex: 1;
+  -webkit-appearance: none; appearance: none;
+  height: 5px; border-radius: 999px;
+  background: rgba(255,255,255,0.2);
+  border: 1px solid var(--lg-glass-border);
+  outline: none;
+}
+.lg-controls__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: linear-gradient(135deg, #5ec8ff, #7873f5);
+  box-shadow: 0 0 10px rgba(94,200,255,0.6);
+  cursor: pointer;
+}
+.lg-controls__slider::-moz-range-thumb {
+  width: 16px; height: 16px; border: 0; border-radius: 50%;
+  background: linear-gradient(135deg, #5ec8ff, #7873f5);
+  box-shadow: 0 0 10px rgba(94,200,255,0.6);
+  cursor: pointer;
+}
+.lg-controls__value {
+  font-size: 12px; color: rgba(255,255,255,0.6);
+  min-width: 32px; text-align: right; font-variant-numeric: tabular-nums;
+}
+`;
+
+  /* ============================================================
+     <lg-rain>  雨滴装饰层
+     属性: density="3-6"（滑落雨滴数）  speed（整体快慢）
+     用法: <lg-rain density="4"></lg-rain>  （放在容器内）
+     ============================================================ */
+  class LgRain extends HTMLElement {
+    connectedCallback() {
+      const sh = this.attachShadow({ mode: 'open' });
+      const density = Math.max(2, Math.min(8, parseInt(this.getAttribute('density'), 10) || 4));
+      let html = '<style>' + LG_CSS + '</style><div class="lg-rain">';
+
+      // 凝结水珠
+      html += '<span class="lg-droplets" aria-hidden="true">';
+      for (let i = 0; i < 6; i++) {
+        html += '<span class="lg-droplet" style="--x:' + (5 + Math.random() * 90).toFixed(0) +
+          '%;--y:' + (8 + Math.random() * 80).toFixed(0) +
+          '%;--s:' + (6 + Math.random() * 6).toFixed(1) + 'px;--d:' + (Math.random() * 4).toFixed(1) + 's"></span>';
+      }
+      html += '</span>';
+
+      // 四边溅水
+      ['top', 'bottom', 'left', 'right'].forEach(function (edge, ei) {
+        html += '<span class="dropper d-' + edge + '" style="--drp-x:' + (15 + Math.random() * 70).toFixed(0) +
+          '%;--drp-y:' + (20 + Math.random() * 60).toFixed(0) +
+          '%;--drp-delay:' + (ei * 0.6 + Math.random() * 0.5).toFixed(1) +
+          's;--drp-dur:' + (1.8 + Math.random() * 1.2).toFixed(1) + 's">' +
+          '<i class="drop"></i>' +
+          '<i class="sp" style="--sp-s:5px;--sp-fx:14px;--sp-fy:-24px"></i>' +
+          '<i class="sp" style="--sp-s:6px;--sp-fx:-16px;--sp-fy:-18px"></i>' +
+          '<i class="sp" style="--sp-s:5px;--sp-fx:20px;--sp-fy:-10px"></i>' +
+          '</span>';
+      });
+
+      // 滑落雨滴
+      for (let i = 0; i < density; i++) {
+        html += '<span class="drip" style="--rx:' + (8 + i * (80 / density) + Math.random() * 6).toFixed(0) +
+          '%;--rw:' + (7 + Math.random() * 6).toFixed(1) +
+          'px;--rdur:' + (4 + Math.random() * 4).toFixed(1) +
+          's;--rdelay:' + (i * 0.9 + Math.random() * 0.6).toFixed(1) + 's"></span>';
+      }
+      html += '</div>';
+      sh.innerHTML = html;
+    }
+    setDensity(n) { /* 简化：动态调整由 re-render 完成 */ }
+  }
+
+  /* ============================================================
+     <lg-grating>  数列排布光栅
+     属性: count（色带数）  base（基数，色带宽度 = 1..n × base）
+           colors="c1,c2,..."  speed（流动速度）  opacity
+     用法: <lg-grating count="7" base="6" speed="7" opacity="0.45"></lg-grating>
+     ============================================================ */
+  class LgGrating extends HTMLElement {
+    connectedCallback() {
+      const sh = this.attachShadow({ mode: 'open' });
+      sh.innerHTML = '<style>' + LG_CSS + '</style><div class="lg-grating" id="g"></div>';
+      this._el = sh.querySelector('#g');
+      this._apply();
+    }
+    _apply() {
+      const n = parseInt(this.getAttribute('count') || '7', 10);
+      const base = parseFloat(this.getAttribute('base') || '6');
+      const speed = parseFloat(this.getAttribute('speed') || '7');
+      const op = parseFloat(this.getAttribute('opacity') || '0.45');
+      const colors = (this.getAttribute('colors') ||
+        '#ff5c7a,#ffa000,#ffeb00,#3cdc78,#28a0ff,#9646ff').split(',');
+
+      // 数列排布：色带宽度 = (i+1) × base，间距 = base
+      let stops = [];
+      let pos = 0;
+      for (let i = 0; i < n; i++) {
+        const w = (i + 1) * base;
+        stops.push(colors[i % colors.length] + ' ' + pos + 'px ' + (pos + w) + 'px');
+        pos += w + base;
+      }
+      this._el.style.background = 'linear-gradient(115deg, ' + stops.join(', ') + ')';
+      this._el.style.animation = 'gratingFlow ' + Math.max(1, 20 - speed) + 's linear infinite';
+      this._el.style.setProperty('--g-opacity', op);
+    }
+    setOpacity(v) { this._el.style.setProperty('--g-opacity', v); }
+    setSpeed(v) { this._el.style.animation = 'gratingFlow ' + Math.max(1, 20 - v) + 's linear infinite'; }
+    off() { this._el.classList.add('off'); }
+    on() { this._el.classList.remove('off'); }
+  }
+
+  /* ============================================================
+     <lg-controls>  全局效果控制面板
+     派发 lg-control 事件: { detail: { key, value } }
+     keys: rain / grating / droplets / spacing / speed / opacity
+     用法: <lg-controls></lg-controls>
+     ============================================================ */
+  class LgControls extends HTMLElement {
+    connectedCallback() {
+      const sh = this.attachShadow({ mode: 'open' });
+      sh.innerHTML =
+        '<style>' + LG_CSS + '</style>' +
+        '<div class="lg-glass lg-controls">' +
+        '<div class="lg-controls__title">◇ 效果调控</div>' +
+        '<div class="lg-controls__row"><span>雨滴</span><div class="lg-switch on" data-k="rain"></div></div>' +
+        '<div class="lg-controls__row"><span>光栅</span><div class="lg-switch on" data-k="grating"></div></div>' +
+        '<div class="lg-controls__row"><span>凝结水珠</span><div class="lg-switch on" data-k="droplets"></div></div>' +
+        '<div class="lg-controls__row"><span>光栅间距</span>' +
+        '<input class="lg-controls__slider" type="range" min="3" max="20" value="6" data-k="spacing">' +
+        '<span class="lg-controls__value" data-v="spacing">6</span></div>' +
+        '<div class="lg-controls__row"><span>光栅速度</span>' +
+        '<input class="lg-controls__slider" type="range" min="1" max="19" value="7" data-k="speed">' +
+        '<span class="lg-controls__value" data-v="speed">7</span></div>' +
+        '<div class="lg-controls__row"><span>光栅透明度</span>' +
+        '<input class="lg-controls__slider" type="range" min="0" max="100" value="45" data-k="opacity">' +
+        '<span class="lg-controls__value" data-v="opacity">45</span></div>' +
+        '</div>';
+
+      const emit = (key, value) => {
+        this.dispatchEvent(new CustomEvent('lg-control', { detail: { key, value }, bubbles: true, composed: true }));
+      };
+      sh.querySelectorAll('.lg-switch').forEach(function (sw) {
+        sw.addEventListener('click', function () {
+          sw.classList.toggle('on');
+          emit(sw.dataset.k, sw.classList.contains('on'));
+        });
+      });
+      sh.querySelectorAll('.lg-controls__slider').forEach(function (sl) {
+        sl.addEventListener('input', function () {
+          sh.querySelector('[data-v="' + sl.dataset.k + '"]').textContent = sl.value;
+          emit(sl.dataset.k, parseFloat(sl.value));
+        });
+      });
+    }
+  }
+
+  /* ============================================================
      注册所有组件
      ============================================================ */
   const components = {
@@ -1018,7 +1337,10 @@
     'lg-progress': LgProgress,
     'lg-tabs': LgTabs,
     'lg-tab': LgTab,
-    'lg-toast': LgToast
+    'lg-toast': LgToast,
+    'lg-rain': LgRain,
+    'lg-grating': LgGrating,
+    'lg-controls': LgControls
   };
 
   Object.keys(components).forEach(function (name) {
