@@ -1,0 +1,52 @@
+{
+  "name": "liquidglass-ui",
+  "version": "0.1.0",
+  "description": "水感液态玻璃组件库 - Liquid Glass UI Web Components (water-sense glass components, zero dependency)",
+  "main": "wc/liquidglass-ui.js",
+  "module": "wc/liquidglass-ui.js",
+  "exports": {
+    ".": "./wc/liquidglass-ui.js",
+    "./wc/liquidglass-ui.js": "./wc/liquidglass-ui.js",
+    "./tokens.css": "./tokens.css",
+    "./glass.css": "./glass.css",
+    "./components.css": "./components.css",
+    "./demo.html": "./demo.html",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "wc/liquidglass-ui.js",
+    "wc/test.html",
+    "tokens.css",
+    "glass.css",
+    "components.css",
+    "demo.html",
+    "index.html",
+    "README.md"
+  ],
+  "keywords": [
+    "liquid-glass",
+    "glassmorphism",
+    "web-components",
+    "custom-elements",
+    "ui-kit",
+    "css",
+    "droplet",
+    "water"
+  ],
+  "author": "idhdi",
+  "license": "MIT",
+  "sideEffects": [
+    "*.css"
+  ],
+  "engines": {
+    "browsers": "> 0.5%, last 2 versions, not dead"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/idhdi/LiquidGlass-UI.git"
+  },
+  "homepage": "https://idhdi.github.io/LiquidGlass-UI/",
+  "bugs": {
+    "url": "https://github.com/idhdi/LiquidGlass-UI/issues"
+  }
+}
