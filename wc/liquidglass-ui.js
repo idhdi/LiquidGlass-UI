@@ -187,10 +187,7 @@
 }
 
 /* ===== 组件互动增强 (Interaction) ===== */
-/* 悬停：玻璃整体微微上浮 + 流光加速 + 波纹放大 + 水珠聚拢 */
-.lg-glass.lg-card:hover {
-  transform: translateY(-4px);
-}
+/* 悬停：流光加速 + 波纹放大 + 水珠聚拢（transform 交给 tilt 引擎） */
 .lg-glass.lg-card:hover .lg-liquid-flow { animation-duration: 2.6s; }
 .lg-glass.lg-card:hover .lg-ripple-edge { animation-duration: 2.4s; transform: scale(0.998); }
 .lg-glass.lg-card:hover .lg-droplet {
@@ -199,22 +196,15 @@
 }
 .lg-card .lg-droplet { transition: transform 0.35s var(--lg-ease), opacity 0.35s ease; }
 
-/* 按下：玻璃轻微收缩回弹 */
-.lg-glass.lg-card:active {
-  transform: translateY(0) scale(0.985);
-  transition-duration: 0.12s;
-}
-
-/* 指标卡互动 */
+/* 指标卡互动：悬停泛光（transform 交给 tilt 引擎） */
 .lg-glass.lg-stat:hover {
-  transform: translateY(-3px) scale(1.01);
   box-shadow:
     0 16px 40px rgba(0,0,0,0.3),
     0 0 30px rgba(94,200,255,0.22),
     0 0 70px rgba(94,200,255,0.10),
     inset 0 1px 1px var(--lg-glass-highlight);
 }
-.lg-stat { transition: transform 0.3s var(--lg-ease), box-shadow 0.3s ease; }
+.lg-stat { transition: transform 0.18s ease-out, box-shadow 0.3s ease; }
 
 /* ===== 组件比例收缩 (Scale) =====
    通过 --lg-scale 变量控制主要组件整体缩放，
@@ -222,6 +212,104 @@
 .lg-card, .lg-stat {
   transform: scale(var(--lg-scale, 1));
   transform-origin: center;
+}
+
+/* ===== 鼠标互动 1：高光跟随 (Spotlight) =====
+   玻璃上的"反光点"跟随光标移动 —— 像玻璃在追光 */
+.lg-spotlight {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(
+    circle 220px at var(--sx, 50%) var(--sy, 50%),
+    rgba(255,255,255,0.28) 0%,
+    rgba(255,255,255,0.10) 35%,
+    rgba(255,255,255,0) 70%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.lg-card:hover .lg-spotlight,
+.lg-stat:hover .lg-spotlight { opacity: 1; }
+
+/* ===== 鼠标互动 2：透视倾斜 (Tilt) =====
+   鼠标靠近时玻璃微微"歪向"光标 —— perspective + rotateX/Y */
+.lg-card, .lg-stat {
+  perspective: 900px;
+  will-change: transform;
+  transition: transform 0.18s ease-out, box-shadow 0.3s ease;
+}
+.lg-tilt {
+  transform:
+    scale(var(--lg-scale, 1))
+    rotateX(var(--rx, 0deg))
+    rotateY(var(--ry, 0deg));
+}
+.lg-tilt-pressed {
+  transform:
+    scale(calc(var(--lg-scale, 1) * 0.97))
+    rotateX(var(--rx, 0deg))
+    rotateY(var(--ry, 0deg));
+}
+
+/* ===== 鼠标互动 3：点击涟漪 (Ripple) ===== */
+.lg-ripple {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.75);
+  box-shadow: 0 0 12px rgba(255,255,255,0.4), inset 0 0 6px rgba(255,255,255,0.3);
+  pointer-events: none;
+  z-index: 6;
+  opacity: 0;
+  animation: lg-ripple-expand 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+@keyframes lg-ripple-expand {
+  0%   { transform: scale(0.3); opacity: 0.95; }
+  100% { transform: scale(14); opacity: 0; }
+}
+
+/* ===== 鼠标互动 4：按压凹陷 (Press) =====
+   按下时玻璃微微"凹进去" —— 内阴影加深 + 缩小 */
+.lg-card, .lg-stat {
+  box-shadow:
+    0 8px 32px var(--lg-glass-shadow),
+    0 0 26px rgba(255,255,255,0.08),
+    inset 0 1px 1px var(--lg-glass-highlight),
+    inset 0 -1px 1px rgba(0,0,0,0.05);
+}
+.lg-pressed {
+  box-shadow:
+    0 3px 12px rgba(0,0,0,0.2),
+    inset 0 2px 8px rgba(0,0,0,0.22),
+    inset 0 -1px 1px rgba(255,255,255,0.06);
+}
+
+/* ===== 鼠标互动 5：划出水痕 (Streak Trail) =====
+   鼠标划过玻璃表面留下"擦痕/水痕"，过一会儿消退 */
+.lg-streak {
+  position: absolute;
+  width: 4px;
+  height: 60px;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 5;
+  background: linear-gradient(to bottom,
+    rgba(255,255,255,0.40),
+    rgba(255,255,255,0.12) 55%,
+    rgba(255,255,255,0) 100%);
+  filter: blur(0.5px);
+  opacity: 0;
+  animation: lg-streak-fade 1.6s ease-out forwards;
+}
+@keyframes lg-streak-fade {
+  0%   { opacity: 0.9; transform: translateY(0) scaleY(1); }
+  60%  { opacity: 0.45; }
+  100% { opacity: 0; transform: translateY(8px) scaleY(0.7); }
 }
 
 /* ---------- 水珠装饰层（凝结水珠） ---------- */
@@ -619,7 +707,6 @@
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 .lg-card:hover {
-  transform: translateY(-6px);
   box-shadow:
     0 16px 40px rgba(0,0,0,0.3),
     0 0 30px rgba(94,200,255,0.25),
@@ -857,7 +944,78 @@
   }
 
   /* ============================================================
-     <lg-card>  卡片容器（玻璃 + 内容插槽，液态增强）
+     共享互动引擎：高光跟随 / 透视倾斜 / 涟漪 / 按压 / 水痕
+     绑定到任意玻璃容器（shadowRoot 内的 .lg-glass 元素）
+     ============================================================ */
+  function attachGlassInteractions(host, rootEl) {
+    if (!rootEl) return;
+
+    /* --- ② 透视倾斜 + ① 高光跟随 --- */
+    rootEl.addEventListener('pointermove', function (e) {
+      const rect = rootEl.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width;   // 0..1
+      const py = (e.clientY - rect.top) / rect.height;
+
+      // 高光位置（百分比）
+      rootEl.style.setProperty('--sx', (px * 100).toFixed(1) + '%');
+      rootEl.style.setProperty('--sy', (py * 100).toFixed(1) + '%');
+
+      // 透视倾斜：中心为 0，边缘最大 ±6deg
+      rootEl.style.setProperty('--ry', ((px - 0.5) * 12).toFixed(2) + 'deg');
+      rootEl.style.setProperty('--rx', ((0.5 - py) * 12).toFixed(2) + 'deg');
+      rootEl.classList.add('lg-tilt');
+    });
+    rootEl.addEventListener('pointerleave', function () {
+      rootEl.classList.remove('lg-tilt', 'lg-tilt-pressed');
+      rootEl.style.setProperty('--rx', '0deg');
+      rootEl.style.setProperty('--ry', '0deg');
+    });
+
+    /* --- ④ 按压凹陷 --- */
+    rootEl.addEventListener('pointerdown', function () {
+      rootEl.classList.add('lg-tilt-pressed', 'lg-pressed');
+    });
+    const release = function () {
+      rootEl.classList.remove('lg-tilt-pressed', 'lg-pressed');
+      rootEl.classList.add('lg-tilt');
+    };
+    rootEl.addEventListener('pointerup', release);
+    rootEl.addEventListener('pointerleave', release);
+
+    /* --- ③ 点击涟漪 --- */
+    rootEl.addEventListener('pointerdown', function (e) {
+      const rect = rootEl.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const r = document.createElement('span');
+      r.className = 'lg-ripple';
+      r.style.left = x + 'px';
+      r.style.top = y + 'px';
+      rootEl.appendChild(r);
+      setTimeout(function () { r.remove(); }, 900);
+    });
+
+    /* --- ⑤ 划出水痕（节流：每 120ms 一条） --- */
+    let lastStreak = 0;
+    rootEl.addEventListener('pointermove', function (e) {
+      const now = Date.now();
+      if (now - lastStreak < 120) return;
+      lastStreak = now;
+      const rect = rootEl.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const st = document.createElement('span');
+      st.className = 'lg-streak';
+      st.style.left = (x - 2) + 'px';
+      st.style.top = (y - 30) + 'px';
+      st.style.transform = 'rotate(' + ((Math.random() - 0.5) * 10) + 'deg)';
+      rootEl.appendChild(st);
+      setTimeout(function () { st.remove(); }, 1700);
+    });
+  }
+
+  /* ============================================================
+     <lg-card>  卡片容器（玻璃 + 内容插槽，液态增强 + 鼠标互动）
      属性: scale="0.8-1.2"  按比例收缩
      用法: <lg-card><h3>标题</h3><p>内容</p></lg-card>
      ============================================================ */
@@ -869,6 +1027,7 @@
       sh.innerHTML =
         '<style>' + LG_CSS + '</style>' +
         '<div class="lg-glass lg-card" style="height:100%;--lg-scale:' + s + ';">' +
+        '<span class="lg-spotlight" aria-hidden="true"></span>' +
         '<span class="lg-liquid-flow" aria-hidden="true"></span>' +
         '<span class="lg-ripple-edge" aria-hidden="true"></span>' +
         '<span class="lg-droplets" aria-hidden="true">' +
@@ -881,6 +1040,7 @@
         '</span>' +
         '<div class="lg-card__body" style="position:relative;z-index:4;"><slot></slot></div>' +
         '</div>';
+      attachGlassInteractions(this, sh.querySelector('.lg-card'));
     }
     attributeChangedCallback(name, oldV, newV) {
       if (name === 'scale' && this.shadowRoot) {
@@ -1007,12 +1167,14 @@
       sh.innerHTML =
         '<style>' + LG_CSS + '</style>' +
         '<div class="lg-glass lg-stat" style="--lg-scale:' + s + ';">' +
+        '<span class="lg-spotlight" aria-hidden="true"></span>' +
         '<span class="lg-liquid-flow" aria-hidden="true"></span>' +
         '<span class="lg-ripple-edge" aria-hidden="true"></span>' +
         '<span class="lg-stat__label">' + (this.getAttribute('label') || '') + '</span>' +
         '<span class="lg-stat__value">' + (this.getAttribute('value') || '') + '</span>' +
         (delta ? '<span class="lg-stat__delta ' + trendCls + '">' + arrow + ' ' + delta + '</span>' : '') +
         '</div>';
+      attachGlassInteractions(this, sh.querySelector('.lg-stat'));
     }
     attributeChangedCallback(name, oldV, newV) {
       if (name === 'scale' && this.shadowRoot) {
