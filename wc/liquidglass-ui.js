@@ -186,6 +186,36 @@
   50%      { opacity: 0.7; transform: scale(0.995); }
 }
 
+/* ===== 组件互动增强 (Interaction) ===== */
+/* 悬停：玻璃整体微微上浮 + 流光加速 + 波纹放大 + 水珠聚拢 */
+.lg-glass.lg-card:hover {
+  transform: translateY(-4px);
+}
+.lg-glass.lg-card:hover .lg-liquid-flow { animation-duration: 2.6s; }
+.lg-glass.lg-card:hover .lg-ripple-edge { animation-duration: 2.4s; transform: scale(0.998); }
+.lg-glass.lg-card:hover .lg-droplet {
+  transform: scale(1.35);
+  opacity: 1;
+}
+.lg-card .lg-droplet { transition: transform 0.35s var(--lg-ease), opacity 0.35s ease; }
+
+/* 按下：玻璃轻微收缩回弹 */
+.lg-glass.lg-card:active {
+  transform: translateY(0) scale(0.985);
+  transition-duration: 0.12s;
+}
+
+/* 指标卡互动 */
+.lg-glass.lg-stat:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow:
+    0 16px 40px rgba(0,0,0,0.3),
+    0 0 30px rgba(94,200,255,0.22),
+    0 0 70px rgba(94,200,255,0.10),
+    inset 0 1px 1px var(--lg-glass-highlight);
+}
+.lg-stat { transition: transform 0.3s var(--lg-ease), box-shadow 0.3s ease; }
+
 /* ---------- 水珠装饰层（凝结水珠） ---------- */
 .lg-droplets {
   position: absolute;
@@ -1172,26 +1202,26 @@
 }
 .lg-grating.off { opacity: 0; }
 
-/* ===== 控制面板 (Controls) ===== */
+/* ===== 控制面板 (Controls) — 右侧固定侧边栏 ===== */
 .lg-controls {
-  position: fixed; bottom: 20px; left: 50%;
-  transform: translateX(-50%);
+  position: fixed; top: 50%; right: 14px;
+  transform: translateY(-50%);
   z-index: 1000;
-  width: min(520px, 92vw);
-  padding: 16px 20px;
+  width: 224px;
+  padding: 14px 16px;
   display: flex; flex-direction: column; gap: 4px;
 }
 .lg-controls__title {
-  font-size: 12px; color: rgba(255,255,255,0.6);
+  font-size: 11px; color: rgba(255,255,255,0.6);
   text-transform: uppercase; letter-spacing: 0.08em;
   margin-bottom: 6px;
 }
 .lg-controls__row {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 6px 0;
+  gap: 10px; padding: 5px 0;
 }
 .lg-controls__row + .lg-controls__row { border-top: 1px solid rgba(255,255,255,0.12); }
-.lg-controls__row span { font-size: 13.5px; }
+.lg-controls__row span { font-size: 13px; }
 .lg-controls__slider {
   flex: 1;
   -webkit-appearance: none; appearance: none;
@@ -1202,20 +1232,20 @@
 }
 .lg-controls__slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 16px; height: 16px; border-radius: 50%;
+  width: 15px; height: 15px; border-radius: 50%;
   background: linear-gradient(135deg, #5ec8ff, #7873f5);
   box-shadow: 0 0 10px rgba(94,200,255,0.6);
   cursor: pointer;
 }
 .lg-controls__slider::-moz-range-thumb {
-  width: 16px; height: 16px; border: 0; border-radius: 50%;
+  width: 15px; height: 15px; border: 0; border-radius: 50%;
   background: linear-gradient(135deg, #5ec8ff, #7873f5);
   box-shadow: 0 0 10px rgba(94,200,255,0.6);
   cursor: pointer;
 }
 .lg-controls__value {
-  font-size: 12px; color: rgba(255,255,255,0.6);
-  min-width: 32px; text-align: right; font-variant-numeric: tabular-nums;
+  font-size: 11px; color: rgba(255,255,255,0.6);
+  min-width: 30px; text-align: right; font-variant-numeric: tabular-nums;
 }
 `;
 
@@ -1266,10 +1296,10 @@
   }
 
   /* ============================================================
-     <lg-grating>  整齐排布光栅
+     <lg-grating>  整齐排布光栅（静态）
      属性: count（色带数）  base（色带宽度与间距，均 = base）
-           colors="c1,c2,..."  speed（流动速度）  opacity
-     用法: <lg-grating count="8" base="7" speed="7" opacity="0.45"></lg-grating>
+           colors="c1,c2,..."  opacity
+     用法: <lg-grating count="8" base="7" opacity="0.45"></lg-grating>
      ============================================================ */
   class LgGrating extends HTMLElement {
     connectedCallback() {
@@ -1281,7 +1311,6 @@
     _apply() {
       const n = parseInt(this.getAttribute('count') || '8', 10);
       const base = parseFloat(this.getAttribute('base') || '7');
-      const speed = parseFloat(this.getAttribute('speed') || '7');
       const op = parseFloat(this.getAttribute('opacity') || '0.45');
       const colors = (this.getAttribute('colors') ||
         '#ff5c7a,#ffa000,#ffeb00,#3cdc78,#28a0ff,#9646ff').split(',');
@@ -1295,21 +1324,19 @@
         pos += w + base;
       }
       this._el.style.background = 'linear-gradient(115deg, ' + stops.join(', ') + ')';
-      // 用周期长度驱动无缝流动
-      this._el.style.setProperty('--g-period', pos + 'px');
-      this._el.style.animation = 'gratingFlow ' + Math.max(1, 20 - speed) + 's linear infinite';
+      // 静态光栅：无流动动画
+      this._el.style.animation = 'none';
       this._el.style.setProperty('--g-opacity', op);
     }
     setOpacity(v) { this._el.style.setProperty('--g-opacity', v); }
-    setSpeed(v) { this._el.style.animation = 'gratingFlow ' + Math.max(1, 20 - v) + 's linear infinite'; }
     off() { this._el.classList.add('off'); }
     on() { this._el.classList.remove('off'); }
   }
 
   /* ============================================================
-     <lg-controls>  全局效果控制面板
+     <lg-controls>  全局效果控制面板（右侧侧边栏）
      派发 lg-control 事件: { detail: { key, value } }
-     keys: rain / grating / droplets / spacing / speed / opacity
+     keys: rain / grating / droplets / spacing / opacity
      用法: <lg-controls></lg-controls>
      ============================================================ */
   class LgControls extends HTMLElement {
@@ -1323,11 +1350,8 @@
         '<div class="lg-controls__row"><span>光栅</span><div class="lg-switch on" data-k="grating"></div></div>' +
         '<div class="lg-controls__row"><span>凝结水珠</span><div class="lg-switch on" data-k="droplets"></div></div>' +
         '<div class="lg-controls__row"><span>光栅间距</span>' +
-        '<input class="lg-controls__slider" type="range" min="3" max="20" value="6" data-k="spacing">' +
-        '<span class="lg-controls__value" data-v="spacing">6</span></div>' +
-        '<div class="lg-controls__row"><span>光栅速度</span>' +
-        '<input class="lg-controls__slider" type="range" min="1" max="19" value="7" data-k="speed">' +
-        '<span class="lg-controls__value" data-v="speed">7</span></div>' +
+        '<input class="lg-controls__slider" type="range" min="3" max="20" value="7" data-k="spacing">' +
+        '<span class="lg-controls__value" data-v="spacing">7</span></div>' +
         '<div class="lg-controls__row"><span>光栅透明度</span>' +
         '<input class="lg-controls__slider" type="range" min="0" max="100" value="45" data-k="opacity">' +
         '<span class="lg-controls__value" data-v="opacity">45</span></div>' +

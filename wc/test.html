@@ -11,17 +11,30 @@
     background: linear-gradient(120deg, #ff6ec4, #7873f5, #4ade80, #38bdf8);
     background-size: 300% 300%;
     animation: bg 18s ease infinite;
-    padding: 40px 20px 140px;
+    padding: 40px 20px 80px;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Microsoft YaHei", sans-serif;
     color: #fff;
   }
   @keyframes bg { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-  .wrap { max-width: 960px; margin: 0 auto; }
+  /* 主内容区留出右侧空间，避免被侧边控制面板遮挡 */
+  .wrap {
+    max-width: 940px;
+    margin: 0 auto;
+    padding-right: 250px;   /* 为右侧控制面板让位 */
+  }
   h1 { font-size: 28px; font-weight: 600; text-shadow: 0 1px 8px rgba(0,0,0,0.2); }
   .sub { color: rgba(255,255,255,0.72); margin-bottom: 40px; }
   h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.72); margin: 40px 0 14px; font-weight: 600; }
   .row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  /* 组件排列：固定三列，整齐对齐 */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 1100px) {
+    .wrap { padding-right: 20px; }
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 700px) {
+    .grid { grid-template-columns: 1fr; }
+  }
 
   /* 雨滴层容器示例：相对定位 + 高度 */
   .rain-box {
@@ -30,12 +43,11 @@
     overflow: hidden;
     height: 320px;
   }
-  /* 光栅层容器示例 */
-  .grating-box {
+  /* 事件日志区 */
+  .event-box {
     position: relative;
     border-radius: 20px;
     overflow: hidden;
-    min-height: 180px;
   }
   pre {
     background: rgba(0,0,0,0.25);
@@ -46,6 +58,7 @@
     color: rgba(255,255,255,0.85);
     white-space: pre-wrap;
     word-break: break-all;
+    margin: 0;
   }
   lg-tab { display: inline-block; }
   lg-card, lg-stat { display: block; }
@@ -106,18 +119,17 @@
       透过半透明玻璃组件可见。下方控制面板可调间距 / 速度 / 透明度。
     </p>
   </lg-card>
-  <lg-grating count="8" base="7" speed="7" opacity="0.45" id="demoGrating"></lg-grating>
+  <lg-grating count="8" base="7" opacity="0.45" id="demoGrating"></lg-grating>
 
   <!-- ================= EVENTS ================= -->
   <h2>事件 &amp; API</h2>
-  <div class="rain-box" style="height:auto;min-height:120px;">
+  <div class="event-box">
     <lg-card style="height:100%;display:block;">
       <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.85);">
         点击按钮 / 切换开关 / 拖拽滑块 → 触发 <code>lg-control</code> 事件：
       </p>
       <pre id="eventLog" style="margin-top:10px;">等待交互…</pre>
     </lg-card>
-    <lg-rain density="2"></lg-rain>
   </div>
 
   <!-- ================= CONTROLS ================= -->
@@ -152,8 +164,6 @@
     } else if (k === 'spacing' && grating) {
       grating.setAttribute('base', v);
       grating._apply();
-    } else if (k === 'speed' && grating) {
-      grating.setSpeed(v);
     } else if (k === 'opacity' && grating) {
       grating.setOpacity(v / 100);
     }
