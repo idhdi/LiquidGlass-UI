@@ -136,6 +136,9 @@
   <lg-controls id="demoControls"></lg-controls>
 </div>
 
+<!-- 全局雨滴：覆盖整个视口，落在所有组件之上 -->
+<lg-rain global density="6" id="globalRain"></lg-rain>
+
 <script src="liquidglass-ui.js"></script>
 <script>
   var log = document.getElementById('eventLog');
@@ -144,9 +147,10 @@
     log.scrollTop = log.scrollHeight;
   }
 
-  /* 控制面板 → 联动所有雨滴/光栅/水珠 */
+  /* 控制面板 → 联动雨滴/光栅/水珠/方向/比例 */
   var rains = Array.prototype.slice.call(document.querySelectorAll('lg-rain'));
   var grating = document.getElementById('demoGrating');
+  var cards = Array.prototype.slice.call(document.querySelectorAll('lg-card, lg-stat'));
 
   document.getElementById('demoControls').addEventListener('lg-control', function (e) {
     var k = e.detail.key, v = e.detail.value;
@@ -161,11 +165,15 @@
         var drops = r.shadowRoot.querySelectorAll('.lg-droplets');
         drops.forEach(function (d) { d.style.display = v ? '' : 'none'; });
       });
+    } else if (k === 'direction' && grating) {
+      grating.setDirection(v);
     } else if (k === 'spacing' && grating) {
       grating.setAttribute('base', v);
       grating._apply();
     } else if (k === 'opacity' && grating) {
       grating.setOpacity(v / 100);
+    } else if (k === 'scale') {
+      cards.forEach(function (c) { c.setAttribute('scale', (v / 100).toFixed(2)); });
     }
   });
 </script>

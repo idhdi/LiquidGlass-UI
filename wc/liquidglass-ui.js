@@ -216,6 +216,14 @@
 }
 .lg-stat { transition: transform 0.3s var(--lg-ease), box-shadow 0.3s ease; }
 
+/* ===== 组件比例收缩 (Scale) =====
+   通过 --lg-scale 变量控制主要组件整体缩放，
+   配合 transform-origin 保持中心缩放。 */
+.lg-card, .lg-stat {
+  transform: scale(var(--lg-scale, 1));
+  transform-origin: center;
+}
+
 /* ---------- 水珠装饰层（凝结水珠） ---------- */
 .lg-droplets {
   position: absolute;
@@ -850,14 +858,17 @@
 
   /* ============================================================
      <lg-card>  卡片容器（玻璃 + 内容插槽，液态增强）
+     属性: scale="0.8-1.2"  按比例收缩
      用法: <lg-card><h3>标题</h3><p>内容</p></lg-card>
      ============================================================ */
   class LgCard extends HTMLElement {
+    static get observedAttributes() { return ['scale']; }
     connectedCallback() {
       const sh = this.attachShadow({ mode: 'open' });
+      const s = parseFloat(this.getAttribute('scale') || '1');
       sh.innerHTML =
         '<style>' + LG_CSS + '</style>' +
-        '<div class="lg-glass lg-card" style="height:100%;">' +
+        '<div class="lg-glass lg-card" style="height:100%;--lg-scale:' + s + ';">' +
         '<span class="lg-liquid-flow" aria-hidden="true"></span>' +
         '<span class="lg-ripple-edge" aria-hidden="true"></span>' +
         '<span class="lg-droplets" aria-hidden="true">' +
@@ -870,6 +881,12 @@
         '</span>' +
         '<div class="lg-card__body" style="position:relative;z-index:4;"><slot></slot></div>' +
         '</div>';
+    }
+    attributeChangedCallback(name, oldV, newV) {
+      if (name === 'scale' && this.shadowRoot) {
+        const el = this.shadowRoot.querySelector('.lg-card');
+        if (el) el.style.setProperty('--lg-scale', parseFloat(newV || '1'));
+      }
     }
   }
 
@@ -976,24 +993,32 @@
 
   /* ============================================================
      <lg-stat>  指标卡
-     属性: label  value  delta  trend="up|down"
+     属性: label  value  delta  trend="up|down"  scale="0.8-1.2"
      ============================================================ */
   class LgStat extends HTMLElement {
+    static get observedAttributes() { return ['scale']; }
     connectedCallback() {
       const trend = this.getAttribute('trend');
       const arrow = trend === 'down' ? '▼' : '▲';
       const trendCls = trend === 'down' ? 'lg-stat__delta--down' : 'lg-stat__delta--up';
       const delta = this.getAttribute('delta');
+      const s = parseFloat(this.getAttribute('scale') || '1');
       const sh = this.attachShadow({ mode: 'open' });
       sh.innerHTML =
         '<style>' + LG_CSS + '</style>' +
-        '<div class="lg-glass lg-stat">' +
+        '<div class="lg-glass lg-stat" style="--lg-scale:' + s + ';">' +
         '<span class="lg-liquid-flow" aria-hidden="true"></span>' +
         '<span class="lg-ripple-edge" aria-hidden="true"></span>' +
         '<span class="lg-stat__label">' + (this.getAttribute('label') || '') + '</span>' +
         '<span class="lg-stat__value">' + (this.getAttribute('value') || '') + '</span>' +
         (delta ? '<span class="lg-stat__delta ' + trendCls + '">' + arrow + ' ' + delta + '</span>' : '') +
         '</div>';
+    }
+    attributeChangedCallback(name, oldV, newV) {
+      if (name === 'scale' && this.shadowRoot) {
+        const el = this.shadowRoot.querySelector('.lg-stat');
+        if (el) el.style.setProperty('--lg-scale', parseFloat(newV || '1'));
+      }
     }
   }
 
@@ -1090,6 +1115,13 @@
   position: absolute; inset: 0;
   pointer-events: none; z-index: 6;
   overflow: hidden; border-radius: inherit;
+}
+/* 全局模式：覆盖整个视口，雨滴落在所有组件之上 */
+.lg-rain.lg-rain--global {
+  position: fixed;
+  inset: 0;
+  z-index: 998;                 /* 高于内容(4)与水滴层，低于滑落层(999) */
+  border-radius: 0;
 }
 .lg-rain.off { display: none; }
 
@@ -1251,14 +1283,16 @@
 
   /* ============================================================
      <lg-rain>  雨滴装饰层
-     属性: density="3-6"（滑落雨滴数）  speed（整体快慢）
+     属性: density="3-6"（滑落雨滴数）  global（全局覆盖整个视口）
      用法: <lg-rain density="4"></lg-rain>  （放在容器内）
+           <lg-rain global density="6"></lg-rain>  （全局雨滴）
      ============================================================ */
   class LgRain extends HTMLElement {
     connectedCallback() {
       const sh = this.attachShadow({ mode: 'open' });
       const density = Math.max(2, Math.min(8, parseInt(this.getAttribute('density'), 10) || 4));
-      let html = '<style>' + LG_CSS + '</style><div class="lg-rain">';
+      const isGlobal = this.hasAttribute('global');
+      let html = '<style>' + LG_CSS + '</style><div class="lg-rain' + (isGlobal ? ' lg-rain--global' : '') + '">';
 
       // 凝结水珠
       html += '<span class="lg-droplets" aria-hidden="true">';
@@ -1312,6 +1346,7 @@
       const n = parseInt(this.getAttribute('count') || '8', 10);
       const base = parseFloat(this.getAttribute('base') || '7');
       const op = parseFloat(this.getAttribute('opacity') || '0.45');
+      const dir = this.getAttribute('direction') || 'slant';   // slant=斜向 vertical=竖向
       const colors = (this.getAttribute('colors') ||
         '#ff5c7a,#ffa000,#ffeb00,#3cdc78,#28a0ff,#9646ff').split(',');
 
@@ -1323,11 +1358,14 @@
         stops.push(colors[i % colors.length] + ' ' + pos + 'px ' + (pos + w) + 'px');
         pos += w + base;
       }
-      this._el.style.background = 'linear-gradient(115deg, ' + stops.join(', ') + ')';
+      // 方向：斜向 115deg / 竖向 90deg（竖向即竖列条纹）
+      const angle = dir === 'vertical' ? 90 : 115;
+      this._el.style.background = 'linear-gradient(' + angle + 'deg, ' + stops.join(', ') + ')';
       // 静态光栅：无流动动画
       this._el.style.animation = 'none';
       this._el.style.setProperty('--g-opacity', op);
     }
+    setDirection(d) { this.setAttribute('direction', d); this._apply(); }
     setOpacity(v) { this._el.style.setProperty('--g-opacity', v); }
     off() { this._el.classList.add('off'); }
     on() { this._el.classList.remove('off'); }
@@ -1337,6 +1375,7 @@
      <lg-controls>  全局效果控制面板（右侧侧边栏）
      派发 lg-control 事件: { detail: { key, value } }
      keys: rain / grating / droplets / spacing / opacity
+           direction（斜向/竖向）  scale（组件比例）
      用法: <lg-controls></lg-controls>
      ============================================================ */
   class LgControls extends HTMLElement {
@@ -1349,12 +1388,17 @@
         '<div class="lg-controls__row"><span>雨滴</span><div class="lg-switch on" data-k="rain"></div></div>' +
         '<div class="lg-controls__row"><span>光栅</span><div class="lg-switch on" data-k="grating"></div></div>' +
         '<div class="lg-controls__row"><span>凝结水珠</span><div class="lg-switch on" data-k="droplets"></div></div>' +
+        '<div class="lg-controls__row"><span>光栅方向</span>' +
+        '<button class="lg-btn lg-btn--sm" data-k="direction" style="min-width:74px;">斜向</button></div>' +
         '<div class="lg-controls__row"><span>光栅间距</span>' +
         '<input class="lg-controls__slider" type="range" min="3" max="20" value="7" data-k="spacing">' +
         '<span class="lg-controls__value" data-v="spacing">7</span></div>' +
         '<div class="lg-controls__row"><span>光栅透明度</span>' +
         '<input class="lg-controls__slider" type="range" min="0" max="100" value="45" data-k="opacity">' +
         '<span class="lg-controls__value" data-v="opacity">45</span></div>' +
+        '<div class="lg-controls__row"><span>组件比例</span>' +
+        '<input class="lg-controls__slider" type="range" min="60" max="120" value="100" data-k="scale">' +
+        '<span class="lg-controls__value" data-v="scale">100</span></div>' +
         '</div>';
 
       const emit = (key, value) => {
@@ -1366,6 +1410,15 @@
           emit(sw.dataset.k, sw.classList.contains('on'));
         });
       });
+      // 方向切换按钮：斜向 ↔ 竖向
+      const dirBtn = sh.querySelector('[data-k="direction"]');
+      if (dirBtn) {
+        dirBtn.addEventListener('click', function () {
+          const next = dirBtn.textContent.trim() === '斜向' ? 'vertical' : 'slant';
+          dirBtn.textContent = next === 'vertical' ? '竖向' : '斜向';
+          emit('direction', next);
+        });
+      }
       sh.querySelectorAll('.lg-controls__slider').forEach(function (sl) {
         sl.addEventListener('input', function () {
           sh.querySelector('[data-v="' + sl.dataset.k + '"]').textContent = sl.value;
