@@ -1157,10 +1157,10 @@
 }
 @keyframes gratingFlow {
   0%   { background-position: 0 0; }
-  100% { background-position: 340px 0; }
+  100% { background-position: var(--g-period, 120px) 0; }
 }
 
-/* ===== 全局数列排布光栅 (Grating) =====
+/* ===== 全局整齐光栅 (Grating) =====
    固定在背景层：铺满全屏、位于场景渐变之上、内容之下，
    透过半透明玻璃组件可见，形成"玻璃上的衍射光栅"。 */
 .lg-grating {
@@ -1266,10 +1266,10 @@
   }
 
   /* ============================================================
-     <lg-grating>  数列排布光栅
-     属性: count（色带数）  base（基数，色带宽度 = 1..n × base）
+     <lg-grating>  整齐排布光栅
+     属性: count（色带数）  base（色带宽度与间距，均 = base）
            colors="c1,c2,..."  speed（流动速度）  opacity
-     用法: <lg-grating count="7" base="6" speed="7" opacity="0.45"></lg-grating>
+     用法: <lg-grating count="8" base="7" speed="7" opacity="0.45"></lg-grating>
      ============================================================ */
   class LgGrating extends HTMLElement {
     connectedCallback() {
@@ -1279,22 +1279,24 @@
       this._apply();
     }
     _apply() {
-      const n = parseInt(this.getAttribute('count') || '7', 10);
-      const base = parseFloat(this.getAttribute('base') || '6');
+      const n = parseInt(this.getAttribute('count') || '8', 10);
+      const base = parseFloat(this.getAttribute('base') || '7');
       const speed = parseFloat(this.getAttribute('speed') || '7');
       const op = parseFloat(this.getAttribute('opacity') || '0.45');
       const colors = (this.getAttribute('colors') ||
         '#ff5c7a,#ffa000,#ffeb00,#3cdc78,#28a0ff,#9646ff').split(',');
 
-      // 数列排布：色带宽度 = (i+1) × base，间距 = base
+      // 整齐排布：每条色带宽度 = base，间距 = base，完全均匀
       let stops = [];
       let pos = 0;
       for (let i = 0; i < n; i++) {
-        const w = (i + 1) * base;
+        const w = base;
         stops.push(colors[i % colors.length] + ' ' + pos + 'px ' + (pos + w) + 'px');
         pos += w + base;
       }
       this._el.style.background = 'linear-gradient(115deg, ' + stops.join(', ') + ')';
+      // 用周期长度驱动无缝流动
+      this._el.style.setProperty('--g-period', pos + 'px');
       this._el.style.animation = 'gratingFlow ' + Math.max(1, 20 - speed) + 's linear infinite';
       this._el.style.setProperty('--g-opacity', op);
     }
