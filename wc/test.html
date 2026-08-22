@@ -56,17 +56,17 @@
   <h1>◈ LiquidGlass UI — Web Components（增强版）</h1>
   <p class="sub">可拉伸组件 + 雨滴效果 + 数列光栅 + 全局控制面板。右下角控制面板实时调控。</p>
 
-  <!-- ================= RESIZABLE ================= -->
-  <h2>可拉伸组件 &lt;lg-card resizable&gt; / &lt;lg-stat resizable&gt;</h2>
+  <!-- ================= CARDS ================= -->
+  <h2>玻璃卡片（液态增强）&lt;lg-card&gt;</h2>
   <div class="grid">
-    <lg-card resizable>
-      <h3 style="margin:0 0 8px;font-size:16px;">云同步（可拉伸）</h3>
+    <lg-card>
+      <h3 style="margin:0 0 8px;font-size:16px;">云同步</h3>
       <p style="margin:0;font-size:13.5px;color:rgba(255,255,255,0.72);line-height:1.5;">
-        拖拽右下角调整大小。数据实时折射到每台设备，包裹在柔和的磨砂层中。
+        双层流光 + 边缘水波纹 + 凝结水珠。数据实时折射到每台设备。
       </p>
     </lg-card>
-    <lg-stat resizable label="月活跃用户" value="128,493" delta="+12.5%" trend="up"></lg-stat>
-    <lg-card resizable>
+    <lg-stat label="月活跃用户" value="128,493" delta="+12.5%" trend="up"></lg-stat>
+    <lg-card>
       <h3 style="margin:0 0 8px;font-size:16px;">隐私保护</h3>
       <p style="margin:0;font-size:13.5px;color:rgba(255,255,255,0.72);line-height:1.5;">
         端到端加密。玻璃之后，只有你选择展示的内容。
@@ -97,17 +97,16 @@
     </div>
   </div>
 
-  <!-- ================= GRATING ================= -->
-  <h2>数列排布光栅 &lt;lg-grating&gt;（可调控）</h2>
-  <div class="grating-box">
-    <lg-card style="height:100%;display:block;">
-      <h3 style="margin:0 0 8px;font-size:16px;">数列光栅</h3>
-      <p style="margin:0;font-size:13.5px;color:rgba(255,255,255,0.72);line-height:1.5;">
-        色带宽度按 1n、2n、3n… 数列排布（count=7, base=6）。下方控制面板可调间距 / 速度 / 透明度。
-      </p>
-    </lg-card>
-    <lg-grating count="7" base="6" speed="7" opacity="0.45" id="demoGrating"></lg-grating>
-  </div>
+  <!-- ================= GRATING（全局背景） ================= -->
+  <h2>全局数列光栅（铺满背景）&lt;lg-grating&gt;</h2>
+  <lg-card>
+    <h3 style="margin:0 0 8px;font-size:16px;">背景光栅</h3>
+    <p style="margin:0;font-size:13.5px;color:rgba(255,255,255,0.72);line-height:1.5;">
+      光栅现在固定在整页背景（z-index -1），色带宽度按 1n、2n、3n… 数列排布，
+      透过半透明玻璃组件可见。下方控制面板可调间距 / 速度 / 透明度。
+    </p>
+  </lg-card>
+  <lg-grating count="7" base="6" speed="7" opacity="0.45" id="demoGrating"></lg-grating>
 
   <!-- ================= EVENTS ================= -->
   <h2>事件 &amp; API</h2>

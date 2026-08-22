@@ -128,24 +128,62 @@
   z-index: 2;
 }
 
-/* 旋转光斑（液态光泽） */
+/* 旋转光斑（液态光泽）—— 双层：大光晕 + 小光点交错流动 */
 .lg-glass::after {
   content: "";
   position: absolute;
-  width: 200%;
-  height: 200%;
-  top: -50%;
-  left: -50%;
-  background: radial-gradient(circle at center, rgba(255,255,255,0.25), rgba(255,255,255,0.05) 40%, transparent 70%);
+  width: 220%;
+  height: 220%;
+  top: -60%;
+  left: -60%;
+  background:
+    radial-gradient(circle at 30% 35%, rgba(255,255,255,0.30), rgba(255,255,255,0.06) 38%, transparent 62%),
+    radial-gradient(circle at 70% 65%, rgba(160,210,255,0.18), transparent 45%);
   mix-blend-mode: soft-light;
   pointer-events: none;
-  animation: lg-sheen 14s ease-in-out infinite;
+  animation: lg-sheen 11s ease-in-out infinite;
   z-index: 1;
 }
 @keyframes lg-sheen {
-  0%   { transform: translate(-30%, -30%) rotate(0deg); opacity: 0.8; }
-  50%  { transform: translate(30%, 30%) rotate(180deg); opacity: 0.4; }
-  100% { transform: translate(-30%, -30%) rotate(360deg); opacity: 0.8; }
+  0%   { transform: translate(-25%, -25%) rotate(0deg); opacity: 0.9; }
+  50%  { transform: translate(25%, 25%) rotate(160deg); opacity: 0.45; }
+  100% { transform: translate(-25%, -25%) rotate(320deg); opacity: 0.9; }
+}
+
+/* 液态增强 1：顶部斜向流光（模拟液体表面反光流动） */
+.lg-glass .lg-liquid-flow {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(115deg,
+    transparent 0%, transparent 30%,
+    rgba(255,255,255,0.10) 42%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0.10) 58%,
+    transparent 70%, transparent 100%);
+  background-size: 250% 100%;
+  animation: lg-liquid-sweep 6s ease-in-out infinite;
+}
+@keyframes lg-liquid-sweep {
+  0%   { background-position: 120% 0; }
+  100% { background-position: -120% 0; }
+}
+
+/* 液态增强 2：边缘水波纹（内圈细波纹，模拟水在玻璃边缘荡漾） */
+.lg-glass .lg-ripple-edge {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  border: 1px solid rgba(255,255,255,0.10);
+  animation: lg-edge-pulse 5s ease-in-out infinite;
+}
+@keyframes lg-edge-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50%      { opacity: 0.7; transform: scale(0.995); }
 }
 
 /* ---------- 水珠装饰层（凝结水珠） ---------- */
@@ -781,24 +819,25 @@
   }
 
   /* ============================================================
-     <lg-card>  卡片容器（玻璃 + 内容插槽，可拉伸）
-     属性: resizable  启用拉伸（右下角拖拽调整大小）
-     用法: <lg-card resizable><h3>标题</h3><p>内容</p></lg-card>
+     <lg-card>  卡片容器（玻璃 + 内容插槽，液态增强）
+     用法: <lg-card><h3>标题</h3><p>内容</p></lg-card>
      ============================================================ */
   class LgCard extends HTMLElement {
     connectedCallback() {
       const sh = this.attachShadow({ mode: 'open' });
-      const resizable = this.hasAttribute('resizable');
-      const rCls = resizable ? ' lg-resizable' : '';
       sh.innerHTML =
         '<style>' + LG_CSS + '</style>' +
-        '<div class="lg-glass lg-card' + rCls + '" style="height:100%;">' +
+        '<div class="lg-glass lg-card" style="height:100%;">' +
+        '<span class="lg-liquid-flow" aria-hidden="true"></span>' +
+        '<span class="lg-ripple-edge" aria-hidden="true"></span>' +
         '<span class="lg-droplets" aria-hidden="true">' +
-        '  <span class="lg-droplet" style="--x:8%;--y:16%;--s:9px;--d:0s"></span>' +
-        '  <span class="lg-droplet" style="--x:28%;--y:72%;--s:7px;--d:1.6s"></span>' +
-        '  <span class="lg-droplet" style="--x:82%;--y:26%;--s:8px;--d:2.8s"></span>' +
+        '  <span class="lg-droplet" style="--x:6%;--y:14%;--s:9px;--d:0s"></span>' +
+        '  <span class="lg-droplet" style="--x:22%;--y:64%;--s:7px;--d:1.1s"></span>' +
+        '  <span class="lg-droplet" style="--x:38%;--y:28%;--s:11px;--d:2.3s"></span>' +
+        '  <span class="lg-droplet" style="--x:56%;--y:76%;--s:6px;--d:0.7s"></span>' +
+        '  <span class="lg-droplet" style="--x:74%;--y:20%;--s:8px;--d:3.2s"></span>' +
+        '  <span class="lg-droplet" style="--x:90%;--y:58%;--s:10px;--d:1.8s"></span>' +
         '</span>' +
-        (resizable ? '<span class="lg-resize-hint">↘ 拖拽拉伸</span>' : '') +
         '<div class="lg-card__body" style="position:relative;z-index:4;"><slot></slot></div>' +
         '</div>';
     }
@@ -906,8 +945,8 @@
   }
 
   /* ============================================================
-     <lg-stat>  指标卡（可拉伸）
-     属性: label  value  delta  trend="up|down"  resizable
+     <lg-stat>  指标卡
+     属性: label  value  delta  trend="up|down"
      ============================================================ */
   class LgStat extends HTMLElement {
     connectedCallback() {
@@ -915,13 +954,12 @@
       const arrow = trend === 'down' ? '▼' : '▲';
       const trendCls = trend === 'down' ? 'lg-stat__delta--down' : 'lg-stat__delta--up';
       const delta = this.getAttribute('delta');
-      const resizable = this.hasAttribute('resizable');
-      const rCls = resizable ? ' lg-resizable' : '';
       const sh = this.attachShadow({ mode: 'open' });
       sh.innerHTML =
         '<style>' + LG_CSS + '</style>' +
-        '<div class="lg-glass lg-stat' + rCls + '">' +
-        (resizable ? '<span class="lg-resize-hint">↘ 拉伸</span>' : '') +
+        '<div class="lg-glass lg-stat">' +
+        '<span class="lg-liquid-flow" aria-hidden="true"></span>' +
+        '<span class="lg-ripple-edge" aria-hidden="true"></span>' +
         '<span class="lg-stat__label">' + (this.getAttribute('label') || '') + '</span>' +
         '<span class="lg-stat__value">' + (this.getAttribute('value') || '') + '</span>' +
         (delta ? '<span class="lg-stat__delta ' + trendCls + '">' + arrow + ' ' + delta + '</span>' : '') +
@@ -1012,25 +1050,11 @@
   }
 
   /* ============================================================
-     增强层：可拉伸 / 雨滴 / 光栅 / 控制面板
+     增强层：雨滴 / 全局光栅 / 控制面板
      ============================================================ */
 
   /* ---------- 追加样式 ---------- */
   LG_CSS += `
-/* ===== 可拉伸 (Resizable) ===== */
-.lg-resizable { resize: both; overflow: auto; min-width: 200px; min-height: 100px; }
-.lg-resizable::-webkit-resizer {
-  background:
-    linear-gradient(135deg, transparent 0 40%, rgba(255,255,255,0.55) 40% 50%, transparent 50%),
-    linear-gradient(135deg, transparent 0 62%, rgba(255,255,255,0.35) 62% 72%, transparent 72%);
-  border-radius: 0 0 18px 0;
-}
-.lg-resize-hint {
-  position: absolute; bottom: 6px; right: 12px;
-  font-size: 11px; color: rgba(255,255,255,0.45);
-  pointer-events: none; z-index: 5; letter-spacing: 0.02em;
-}
-
 /* ===== 雨滴装饰层 (Rain) ===== */
 .lg-rain {
   position: absolute; inset: 0;
@@ -1136,10 +1160,12 @@
   100% { background-position: 340px 0; }
 }
 
-/* ===== 数列排布光栅 (Grating) ===== */
+/* ===== 全局数列排布光栅 (Grating) =====
+   固定在背景层：铺满全屏、位于场景渐变之上、内容之下，
+   透过半透明玻璃组件可见，形成"玻璃上的衍射光栅"。 */
 .lg-grating {
-  position: absolute; inset: 0;
-  pointer-events: none; z-index: 5;
+  position: fixed; inset: 0;
+  pointer-events: none; z-index: -1;
   mix-blend-mode: screen;
   opacity: var(--g-opacity, 0.45);
   transition: opacity 0.4s ease;
