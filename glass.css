@@ -1,0 +1,150 @@
+/* ============================================================
+   LiquidGlass UI — 玻璃基础材质 (Glass Foundation)
+   ------------------------------------------------------------
+   页面场景 + 玻璃面板核心 + 水珠装饰层。
+   所有组件都基于 .lg-glass 派生。
+   ============================================================ */
+
+/* ---------- 页面场景 ---------- */
+.lg-scene {
+  min-height: 100vh;
+  background: var(--lg-scene);
+  background-size: var(--lg-scene-size);
+  animation: lg-scene-shift 18s ease infinite;
+  padding: 40px 20px 100px;
+  color: var(--lg-text);
+  font-family: var(--lg-font);
+  box-sizing: border-box;
+}
+.lg-scene *,
+.lg-scene *::before,
+.lg-scene *::after { box-sizing: border-box; }
+
+@keyframes lg-scene-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ---------- 玻璃面板核心 ---------- */
+.lg-glass {
+  position: relative;
+  background: var(--lg-glass-bg);
+  backdrop-filter: var(--lg-blur);
+  -webkit-backdrop-filter: var(--lg-blur);
+  border: 1px solid var(--lg-glass-border);
+  border-radius: var(--lg-radius);
+  box-shadow:
+    0 8px 32px var(--lg-glass-shadow),
+    0 0 26px rgba(255,255,255,0.08),
+    0 0 70px rgba(94,200,255,0.07),
+    inset 0 1px 1px var(--lg-glass-highlight),
+    inset 0 -1px 1px rgba(0,0,0,0.05);
+  overflow: hidden;
+}
+
+/* 顶部斜向液面高光 */
+.lg-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0) 40%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* 旋转光斑（液态光泽） */
+.lg-glass::after {
+  content: "";
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.25), rgba(255,255,255,0.05) 40%, transparent 70%);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+  animation: lg-sheen 14s ease-in-out infinite;
+  z-index: 1;
+}
+@keyframes lg-sheen {
+  0%   { transform: translate(-30%, -30%) rotate(0deg); opacity: 0.8; }
+  50%  { transform: translate(30%, 30%) rotate(180deg); opacity: 0.4; }
+  100% { transform: translate(-30%, -30%) rotate(360deg); opacity: 0.8; }
+}
+
+/* ---------- 水珠装饰层（凝结水珠） ---------- */
+.lg-droplets {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.lg-droplet {
+  position: absolute;
+  left: var(--x, 10%);
+  top: var(--y, 10%);
+  width: var(--s, 12px);
+  height: calc(var(--s, 12px) * 1.18);
+  border-radius: 62% 38% 55% 45% / 68% 62% 38% 32%;
+  background:
+    radial-gradient(circle at 30% 22%, rgba(255,255,255,0.5), rgba(255,255,255,0.12) 20%, transparent 45%),
+    radial-gradient(circle at 68% 85%, rgba(255,255,255,0.16) 0%, transparent 35%),
+    radial-gradient(circle at 46% 46%, rgba(200,225,255,0.08), rgba(170,200,240,0.04) 55%, rgba(140,175,225,0.06) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.16),
+    inset 0 -3px 5px rgba(255,255,255,0.18),
+    0 2px 3px rgba(0,0,0,0.14);
+  opacity: 0.9;
+  animation: lg-droplet-pulse var(--dur, 5s) ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+  will-change: opacity;
+}
+@keyframes lg-droplet-pulse {
+  0%, 100% { opacity: 0.75; }
+  50%      { opacity: 1; }
+}
+
+/* ---------- 通用布局辅助 ---------- */
+.lg-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lg-space-4);
+  align-items: center;
+}
+.lg-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lg-space-3);
+}
+.lg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--lg-space-4);
+}
+.lg-section-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lg-text-secondary);
+  margin: 40px 0 14px;
+  font-weight: 600;
+}
+.lg-h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  text-shadow: 0 1px 8px rgba(0,0,0,0.2);
+}
+.lg-sub {
+  color: var(--lg-text-secondary);
+  font-size: 15px;
+  margin: 0 0 40px;
+}
