@@ -1591,6 +1591,389 @@
   }
 
   /* ============================================================
+     <lg-lens>  镜头玻璃（SVG 滤镜管道 + 鼠标镜头 + 参数面板）
+     ------------------------------------------------------------
+     · SVG 滤镜：feTurbulence + feDisplacementMap 折射扭曲；
+       feOffset×3 + feColorMatrix 抽 R/G/B 通道做棱镜色散；
+       feDropShadow 表现边缘高光。绑定 filter: url(#id)。
+     · 玻璃质感：scene 平移镜头 + 顶部扫光/边缘光晕层。
+     · 交互：鼠标位置 → 目标坐标，rAF 缓动 → transform 平移（不重排）；
+       双击/按钮平滑复位镜头。
+     · 参数：JSON 配置对象 CONFIG 驱动右侧滑杆面板，实时更新 SVG 属性。
+     用法:
+       <lg-lens width="640" height="400" controls></lg-lens>
+       <lg-lens preset="aurora"></lg-lens>
+     ============================================================ */
+  var lensSeq = 0;
+
+  class LgLens extends HTMLElement {
+    connectedCallback() {
+      var self = this;
+      self._uid = '__lg_lens_' + (++lensSeq);
+      var FILTER_ID = self._uid + '_filter';
+
+      // ---------- 参数面板绑定 JSON（默认配置） ----------
+      self.CONFIG = {
+        displace: 46,    // 折射强度（feDisplacementMap scale）
+        chroma: 3.2,     // 棱镜色散强度（RGB 通道偏移 px）
+        blur: 1.1,       // 折射后柔化
+        glow: 9,         // 边缘高光泛光
+        noise: 0.012,    // 折射噪声频率
+        zoom: 1.3,       // 镜头内场景放大
+        ease: 0.055      // 镜头跟随缓动系数
+      };
+      var preset = this.getAttribute('preset');
+      if (preset === 'aurora') {
+        self.CONFIG.chroma = 5; self.CONFIG.glow = 14; self.CONFIG.displace = 60;
+      }
+
+      // ---------- 注入 SVG 滤镜（放 light DOM，供 url(#) 引用） ----------
+      var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', '0');
+      svg.setAttribute('height', '0');
+      svg.setAttribute('style', 'position:absolute');
+      svg.innerHTML =
+        '<defs><filter id="' + FILTER_ID + '" color-interpolation-filters="sRGB" x="-30%" y="-30%" width="160%" height="160%">' +
+        /* 折射噪声位移图 */
+        '<feTurbulence type="fractalNoise" baseFrequency="' + self.CONFIG.noise + '" numOctaves="2" seed="7" result="noise"/>' +
+        '<feColorMatrix in="noise" type="matrix" values="0.5 0.5 0.5 0 0  0.5 0.5 0.5 0 0  0.5 0.5 0.5 0 0  0 0 0 1 0" result="map"/>' +
+        /* 主折射 */
+        '<feDisplacementMap in="SourceGraphic" in2="map" xChannelSelector="R" yChannelSelector="G" scale="' + self.CONFIG.displace + '" result="refract"/>' +
+        /* RGB 通道棱镜色散：三路不同偏移 → 各抽一色 → screen 混合 */
+        '<feOffset in="refract" dx="' + (-self.CONFIG.chroma) + '" dy="0" result="sr"/>' +
+        '<feOffset in="refract" dx="0" dy="0" result="sg"/>' +
+        '<feOffset in="refract" dx="' + self.CONFIG.chroma + '" dy="0" result="sb"/>' +
+        '<feColorMatrix in="sr" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="cr"/>' +
+        '<feColorMatrix in="sg" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="cg"/>' +
+        '<feColorMatrix in="sb" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="cb"/>' +
+        '<feBlend in="cr" in2="cg" mode="screen" result="rg"/>' +
+        '<feBlend in="rg" in2="cb" mode="screen" result="chroma"/>' +
+        /* 柔化 + 边缘高光泛光 */
+        '<feGaussianBlur in="chroma" stdDeviation="' + self.CONFIG.blur + '" result="soft"/>' +
+        '<feDropShadow in="soft" dx="0" dy="0" stdDeviation="' + self.CONFIG.glow + '" flood-color="#9fdcff" flood-opacity="0.55"/>' +
+        '</filter></defs>';
+      (document.body || document.documentElement).appendChild(svg);
+      self._svg = svg;
+
+      // ---------- Shadow DOM 结构 ----------
+      var width = this.getAttribute('width') || '100%';
+      var height = this.getAttribute('height') || '400';
+      var sh = this.attachShadow({ mode: 'open' });
+      sh.innerHTML =
+        '<style>' + LG_CSS + LENS_EXTRA_CSS + '</style>' +
+        '<div class="lg-lens" style="width:' + width + ';height:' + height + ';">' +
+        '  <div class="lg-lens__scene">' +
+        '    <div class="lg-lens__blob b1"></div>' +
+        '    <div class="lg-lens__blob b2"></div>' +
+        '    <div class="lg-lens__blob b3"></div>' +
+        '    <div class="lg-lens__blob b4"></div>' +
+        '    <div class="lg-lens__ring"></div>' +
+        '    <div class="lg-lens__grain"></div>' +
+        '  </div>' +
+        '  <div class="lg-lens__frame"></div>' +
+        '</div>' +
+        (this.hasAttribute('controls') ? LENS_PANEL_HTML : '');
+
+      self._root = sh;
+      self._scene = sh.querySelector('.lg-lens__scene');
+      self._scene.style.filter = 'url(#' + FILTER_ID + ')';
+
+      // 场景内容放大铺满，镜头通过 transform 平移
+      self._cur = { x: 0, y: 0 };
+      self._tar = { x: 0, y: 0 };
+      self._raf = null;
+      self._hover = false;
+
+      self._bindControls();
+
+      // 鼠标 → 目标坐标（映射为 -1..1）
+      self.addEventListener('pointermove', function (e) {
+        var r = self.getBoundingClientRect();
+        self._tar.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+        self._tar.y = ((e.clientY - r.top) / r.height) * 2 - 1;
+        self._hover = true;
+        if (self._raf === null) self._raf = requestAnimationFrame(self._tick.bind(self));
+      });
+      self.addEventListener('pointerleave', function () { self._hover = false; });
+      self.addEventListener('dblclick', function () { self.resetLens(); });
+    }
+
+    /* rAF 缓动镜头（transform 驱动，无重排） */
+    _tick() {
+      var self = this;
+      if (!self._scene) { self._raf = null; return; }
+      var ease = self.CONFIG.ease;
+      if (!self._hover) {
+        // 缓慢回归中心（镜头复位缓动）
+        self._cur.x += (0 - self._cur.x) * ease * 0.6;
+        self._cur.y += (0 - self._cur.y) * ease * 0.6;
+      } else {
+        self._cur.x += (self._tar.x - self._cur.x) * ease;
+        self._cur.y += (self._tar.y - self._cur.y) * ease;
+      }
+      var z = self.CONFIG.zoom;
+      // scene 相对容器中心偏移：移动 = 放大余量 × 镜头坐标
+      var moveX = (z - 1) * 70 * self._cur.x;
+      var moveY = (z - 1) * 70 * self._cur.y;
+      self._scene.style.transform =
+        'translate(' + moveX.toFixed(2) + 'px,' + moveY.toFixed(2) + 'px) scale(' + z + ')';
+
+      if (Math.abs(self._cur.x) > 0.002 || Math.abs(self._cur.y) > 0.002 || self._hover) {
+        self._raf = requestAnimationFrame(self._tick.bind(self));
+      } else {
+        self._raf = null;
+      }
+    }
+
+    /* 复位镜头：平滑缓动回中心 */
+    resetLens() {
+      this._hover = false;
+      this._tar.x = 0; this._tar.y = 0;
+      if (this._raf === null) this._raf = requestAnimationFrame(this._tick.bind(this));
+    }
+
+    /* 应用一份配置（更新 SVG 属性 + 镜头） */
+    applyConfig(cfg) {
+      var self = this;
+      for (var k in cfg) if (cfg.hasOwnProperty(k)) self.CONFIG[k] = cfg[k];
+      self._refreshFilter();
+      if (self._panel && self._panelValues) {
+        for (var p in cfg) if (cfg.hasOwnProperty(p) && self._panelValues[p]) {
+          self._panelValues[p].textContent = cfg[p];
+        }
+      }
+      if (self._raf === null) self._raf = requestAnimationFrame(self._tick.bind(self));
+      return self.CONFIG;
+    }
+
+    _refreshFilter() {
+      var f = this._svg && this._svg.querySelector('filter');
+      if (!f) return;
+      var els = f.children;
+      // [turb, colorm, disp, oR, oG, oB, cR, cG, cB, bRG, bChrom, blur, drop]
+      if (els[0]) els[0].setAttribute('baseFrequency', this.CONFIG.noise);
+      if (els[2]) els[2].setAttribute('scale', this.CONFIG.displace);
+      if (els[3]) els[3].setAttribute('dx', -this.CONFIG.chroma);
+      if (els[5]) els[5].setAttribute('dx', this.CONFIG.chroma);
+      if (els[11]) els[11].setAttribute('stdDeviation', this.CONFIG.blur);
+      if (els[12]) els[12].setAttribute('stdDeviation', this.CONFIG.glow);
+    }
+
+    /* 参数面板：滑杆 ↔ CONFIG ↔ JSON 预览 */
+    _bindControls() {
+      var self = this;
+      var panel = this._root.querySelector('.lg-lens__panel');
+      if (!panel) return;
+      self._panel = panel;
+      self._panelValues = {};
+      var jsonEl = panel.querySelector('[data-json]');
+
+      var defs = {
+        displace: { min: 0, max: 140, label: '折射强度' },
+        chroma: { min: 0, max: 12, label: '棱镜色散' },
+        blur: { min: 0, max: 6, label: '柔化' },
+        glow: { min: 0, max: 30, label: '边缘泛光' },
+        noise: { min: 0.002, max: 0.05, label: '折射噪波', step: 0.001 },
+        zoom: { min: 1.0, max: 2.2, label: '镜头缩放', step: 0.02 },
+        ease: { min: 0.01, max: 0.2, label: '跟随速度', step: 0.005 }
+      };
+
+      Object.keys(defs).forEach(function (k) {
+        var d = defs[k];
+        var row = document.createElement('div');
+        row.className = 'lg-lens__prow';
+        row.innerHTML =
+          '<span class="lg-lens__plabel">' + d.label + '</span>' +
+          '<input class="lg-lens__pslider" type="range" min="' + d.min + '" max="' + d.max + '"' +
+          (d.step ? ' step="' + d.step + '"' : '') + ' value="' + self.CONFIG[k] + '" data-k="' + k + '">' +
+          '<span class="lg-lens__pval" data-v="' + k + '">' + self.CONFIG[k] + '</span>';
+        panel.insertBefore(row, jsonEl);
+        self._panelValues[k] = row.querySelector('[data-v="' + k + '"]');
+      });
+
+      panel.querySelectorAll('.lg-lens__pslider').forEach(function (sl) {
+        sl.addEventListener('input', function () {
+          var k = sl.dataset.k;
+          var v = parseFloat(sl.value);
+          var one = {};
+          one[k] = v;
+          self.applyConfig(one);
+          self._syncJson(jsonEl);
+        });
+      });
+      var resetBtn = panel.querySelector('[data-reset]');
+      if (resetBtn) {
+        resetBtn.addEventListener('click', function () {
+          self._root.querySelectorAll('.lg-lens__pslider').forEach(function (sl) {
+            sl.value = sl.dataset.k === 'chroma' ? 3.2 : sl.dataset.k === 'displace' ? 46 :
+              sl.dataset.k === 'noise' ? 0.012 : sl.dataset.k === 'zoom' ? 1.3 : sl.dataset.k === 'ease' ? 0.055 : sl.dataset.k === 'glow' ? 9 : 1.1;
+            var ev = new Event('input', { bubbles: true });
+            sl.dispatchEvent(ev);
+          });
+          self.resetLens();
+          self._syncJson(jsonEl);
+        });
+      }
+      self._syncJson(jsonEl);
+    }
+
+    _syncJson(el) {
+      if (el) el.textContent = JSON.stringify(this.CONFIG, null, 2);
+    }
+  }
+
+  /* lens 专用附加 CSS（注入 shadow style） */
+  var LENS_EXTRA_CSS = `
+.lg-lens {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.4);
+  box-shadow: 0 24px 70px rgba(0,0,0,0.35), inset 0 1px 1px rgba(255,255,255,0.5);
+  background: #0b1020;
+  cursor: crosshair;
+  isolation: isolate;
+  touch-action: none;
+}
+.lg-lens__scene {
+  position: absolute;
+  inset: -80px;
+  transform-origin: center center;
+  will-change: transform;
+  background:
+    radial-gradient(110% 90% at 18% 22%, #2b7dff 0%, transparent 55%),
+    radial-gradient(90% 80% at 82% 26%, #a44dff 0%, transparent 55%),
+    radial-gradient(95% 90% at 70% 80%, #12c4a0 0%, transparent 55%),
+    radial-gradient(80% 80% at 24% 78%, #ff4d8f 0%, transparent 55%),
+    #0d1226;
+  overflow: hidden;
+}
+.lg-lens__blob {
+  position: absolute;
+  border-radius: 45% 55% 60% 40% / 50% 45% 55% 50%;
+  filter: blur(30px);
+  opacity: 0.7;
+  animation: lg-lens-float 16s ease-in-out infinite alternate;
+}
+.lg-lens__blob.b1 { width: 260px; height: 260px; left: 6%; top: 10%; background: radial-gradient(circle, #7fd0ff, transparent 70%); }
+.lg-lens__blob.b2 { width: 320px; height: 320px; right: 4%; top: 30%; background: radial-gradient(circle, #b06bff, transparent 70%); animation-delay: -4s; }
+.lg-lens__blob.b3 { width: 240px; height: 240px; left: 30%; bottom: -4%; background: radial-gradient(circle, #4cffd2, transparent 70%); animation-delay: -8s; }
+.lg-lens__blob.b4 { width: 200px; height: 200px; left: -4%; bottom: 16%; background: radial-gradient(circle, #ff7aa9, transparent 70%); animation-delay: -11s; }
+@keyframes lg-lens-float {
+  0%   { transform: translate(0,0) rotate(0deg) scale(1); }
+  100% { transform: translate(40px,-30px) rotate(40deg) scale(1.15); }
+}
+.lg-lens__ring {
+  position: absolute;
+  width: 340px; height: 340px;
+  left: 50%; top: 50%;
+  transform: translate(-50%,-50%);
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.25);
+  box-shadow: 0 0 60px rgba(130,200,255,0.35), inset 0 0 40px rgba(255,255,255,0.08);
+  pointer-events: none;
+}
+.lg-lens__grain {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-radial-gradient(circle at 20% 24%, rgba(255,255,255,0.05) 0 0.6px, transparent 0.7px 3.5px),
+    repeating-radial-gradient(circle at 78% 70%, rgba(0,0,0,0.12) 0 0.5px, transparent 0.6px 3px);
+  opacity: 0.55;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+.lg-lens__frame {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255,255,255,0.6), rgba(255,255,255,0.05) 40%, rgba(0,0,0,0.25));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.lg-lens__frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(115deg, transparent 20%, rgba(255,255,255,0.14) 46%, rgba(255,255,255,0.3) 52%, transparent 84%);
+  background-size: 250% 100%;
+  animation: lg-lens-scan 7s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+@keyframes lg-lens-scan {
+  0% { background-position: 130% 0; }
+  100% { background-position: -130% 0; }
+}
+.lg-lens__panel {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 6;
+  width: 218px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(16,22,40,0.66);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.28);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--lg-font);
+  color: #fff;
+}
+.lg-lens__ptitle {
+  font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(255,255,255,0.65); margin-bottom: 2px;
+}
+.lg-lens__prow { display: flex; align-items: center; gap: 8px; }
+.lg-lens__plabel { font-size: 11.5px; width: 52px; color: rgba(255,255,255,0.85); flex-shrink: 0; }
+.lg-lens__pslider {
+  flex: 1; -webkit-appearance: none; appearance: none; height: 4px;
+  border-radius: 999px; background: rgba(255,255,255,0.22); outline: none;
+}
+.lg-lens__pslider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+  background: linear-gradient(135deg, #6fd0ff, #9a5dff);
+  box-shadow: 0 0 8px rgba(120,190,255,0.8); cursor: pointer;
+}
+.lg-lens__pslider::-moz-range-thumb {
+  width: 13px; height: 13px; border: 0; border-radius: 50%;
+  background: linear-gradient(135deg, #6fd0ff, #9a5dff); cursor: pointer;
+}
+.lg-lens__pval { font-size: 10.5px; width: 34px; text-align: right; color: rgba(255,255,255,0.6); font-variant-numeric: tabular-nums; }
+.lg-lens__pjson {
+  margin: 4px 0 0; padding: 8px 9px; border-radius: 10px;
+  background: rgba(0,0,0,0.35); font-family: var(--lg-font-mono);
+  font-size: 9.5px; line-height: 1.45; color: rgba(160,220,255,0.95);
+  max-height: 118px; overflow: auto; white-space: pre;
+}
+.lg-lens__preset {
+  font-family: inherit; font-size: 11px; font-weight: 600;
+  padding: 5px 0; border-radius: 999px; border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.1); color: #fff; cursor: pointer;
+  transition: background 0.2s ease;
+}
+.lg-lens__preset:hover { background: rgba(255,255,255,0.22); }
+`;
+
+  /* lens 面板骨架（.lg-lens__pjson 用 data-json 标记） */
+  var LENS_PANEL_HTML =
+    '<div class="lg-lens__panel">' +
+    '<div class="lg-lens__ptitle">◇ 镜头参数 (JSON)</div>' +
+    '<pre class="lg-lens__pjson" data-json></pre>' +
+    '<button class="lg-lens__preset" data-reset>↺ 复位镜头 / 参数</button>' +
+    '</div>';
+
+  /* ============================================================
      注册所有组件
      ============================================================ */
   const components = {
@@ -1607,7 +1990,8 @@
     'lg-toast': LgToast,
     'lg-rain': LgRain,
     'lg-grating': LgGrating,
-    'lg-controls': LgControls
+    'lg-controls': LgControls,
+    'lg-lens': LgLens
   };
 
   Object.keys(components).forEach(function (name) {
