@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>LiquidGlass UI — Module A 物理光学增强</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    overflow-x: hidden;
+    background:
+      radial-gradient(120% 110% at 18% -10%, #2a1f5c 0%, rgba(42, 31, 92, 0) 55%),
+      radial-gradient(90% 90% at 88% 8%, #0f3f57 0%, rgba(15, 63, 87, 0) 60%),
+      radial-gradient(120% 120% at 50% 120%, #06202c 0%, rgba(6, 32, 44, 0) 60%),
+      #05070f;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Microsoft YaHei", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- A4：页面级水下焦散背景 ---------- */
+  .caustics-bg {
+    position: fixed;
+    inset: -12%;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.55;
+    mix-blend-mode: screen;
+    background:
+      repeating-radial-gradient(circle at 24% 28%, rgba(140, 235, 255, 0.38) 0 1.2px, rgba(140, 235, 255, 0) 2px 34px),
+      repeating-radial-gradient(circle at 76% 62%, rgba(190, 160, 255, 0.30) 0 1.2px, rgba(190, 160, 255, 0) 2px 46px),
+      repeating-radial-gradient(circle at 55% 88%, rgba(120, 255, 225, 0.22) 0 1px, rgba(120, 255, 225, 0) 2px 58px);
+    background-size: 340px 340px, 460px 460px, 560px 560px;
+    animation: caustic-drift 42s linear infinite;
+    filter: blur(0.7px) saturate(1.4);
+  }
+  @keyframes caustic-drift {
+    0%   { transform: translate3d(0, 0, 0) rotate(0deg) scale(1.02); background-position: 0 0, 0 0, 0 0; }
+    50%  { transform: translate3d(-3%, 2%, 0) rotate(1.2deg) scale(1.06); background-position: 90px 60px, -120px 40px, 60px -80px; }
+    100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1.02); background-position: 0 0, 0 0, 0 0; }
+  }
+
+  /* 环境色团 */
+  .aurora { position: fixed; border-radius: 50%; filter: blur(90px); opacity: 0.4; pointer-events: none; z-index: 0; }
+  .aurora.a1 { width: 520px; height: 420px; left: -120px; top: 4%; background: radial-gradient(circle, rgba(94, 200, 255, 0.55), transparent 70%); }
+  .aurora.a2 { width: 460px; height: 460px; right: -80px; top: 22%; background: radial-gradient(circle, rgba(150, 100, 255, 0.5), transparent 70%); }
+  .aurora.a3 { width: 520px; height: 380px; left: 30%; bottom: -160px; background: radial-gradient(circle, rgba(60, 220, 180, 0.4), transparent 70%); }
+  .aurora.a4 { width: 760px; height: 560px; left: 16%; top: 34%; background: radial-gradient(circle, rgba(70, 150, 255, 0.30), transparent 70%); }
+  .aurora.a5 { width: 680px; height: 520px; right: 6%; top: 58%; background: radial-gradient(circle, rgba(170, 110, 255, 0.26), transparent 70%); }
+
+  .wrap { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; padding: 64px 26px 140px; }
+
+  header .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    color: rgba(190, 235, 255, 0.85);
+    border: 1px solid rgba(150, 220, 255, 0.35);
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(90, 180, 255, 0.08);
+    backdrop-filter: blur(12px);
+  }
+  header h1 {
+    font-size: clamp(30px, 4vw, 46px);
+    line-height: 1.12;
+    margin: 20px 0 14px;
+    letter-spacing: -0.02em;
+    text-shadow: 0 8px 40px rgba(120, 200, 255, 0.25);
+  }
+  header h1 em {
+    font-style: normal;
+    background: linear-gradient(100deg, #8fe3ff 0%, #a9a2ff 45%, #7dffd8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  header .lede { max-width: 720px; color: rgba(225, 240, 255, 0.72); font-size: 15.5px; line-height: 1.7; margin: 0 0 12px; }
+  header .meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
+  header .meta span {
+    font-size: 11.5px; letter-spacing: 0.06em; color: rgba(210, 240, 255, 0.8);
+    padding: 5px 11px; border-radius: 999px; border: 1px solid rgba(150, 220, 255, 0.22);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  section { margin-top: 74px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+  .idx {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
+    color: #0b1220; background: linear-gradient(135deg, #a9ecff, #8f9dff);
+    padding: 4px 9px; border-radius: 8px; box-shadow: 0 2px 14px rgba(130, 200, 255, 0.4);
+  }
+  h2 { font-size: 22px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+  h2 small { font-size: 12px; letter-spacing: 0.14em; color: rgba(200, 230, 255, 0.5); font-weight: 500; margin-left: 8px; text-transform: uppercase; }
+  .hint { margin: 4px 0 22px; max-width: 760px; color: rgba(210, 232, 255, 0.6); font-size: 13.5px; line-height: 1.65; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 22px; align-items: stretch; }
+  .pad { position: relative; z-index: 4; padding: 22px 24px; }
+  .pad h3 { margin: 0 0 6px; font-size: 16px; font-weight: 620; }
+  .pad p { margin: 0; color: rgba(225, 240, 255, 0.65); font-size: 13.5px; line-height: 1.65; }
+  .pad .tiny { font-size: 11.5px; letter-spacing: 0.04em; color: rgba(170, 215, 255, 0.55); margin-top: 14px; }
+
+  lg-card, lg-stat, lg-tabs { display: block; }
+  lg-tabs { display: inline-block; }
+  lg-switch { display: block; }
+
+  .tabs-log { margin-top: 14px; font-size: 12.5px; color: rgba(170, 220, 255, 0.7); letter-spacing: 0.02em; }
+
+  .switches .lg-switch-row { padding: 10px 0; }
+  .switches { margin-top: 4px; }
+
+  .wide-card { display: block; }
+  .hero { display: flex; flex-wrap: wrap; gap: 28px; align-items: center; justify-content: space-between; padding: 30px 34px; position: relative; z-index: 4; }
+  .hero .big { font-size: 40px; font-weight: 650; letter-spacing: -0.03em; line-height: 1; margin: 6px 0 10px; }
+  .hero .big em { font-style: normal; font-size: 15px; font-weight: 500; color: rgba(180, 230, 255, 0.75); margin-left: 6px; letter-spacing: 0; }
+  .hero p { margin: 0; color: rgba(220, 238, 255, 0.66); font-size: 13.5px; max-width: 460px; line-height: 1.7; }
+  .hero .pill-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  .pill { font-size: 12px; padding: 7px 13px; border-radius: 999px; background: rgba(255, 255, 255, 0.09); border: 1px solid rgba(255, 255, 255, 0.22); color: rgba(235, 248, 255, 0.9); }
+
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-top: 22px; }
+
+  footer { margin-top: 90px; padding-top: 26px; border-top: 1px solid rgba(150, 210, 255, 0.14); color: rgba(180, 210, 235, 0.45); font-size: 12.5px; line-height: 1.8; display: flex; flex-wrap: wrap; gap: 8px 22px; justify-content: space-between; }
+  footer a { color: rgba(160, 225, 255, 0.85); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 760px) {
+    .wrap { padding: 42px 18px 90px; }
+    section { margin-top: 54px; }
+    .hero { padding: 22px 20px; }
+    .hero .big { font-size: 32px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .caustics-bg, .aurora { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="caustics-bg" aria-hidden="true"></div>
+<div class="aurora a1" aria-hidden="true"></div>
+<div class="aurora a2" aria-hidden="true"></div>
+<div class="aurora a3" aria-hidden="true"></div>
+<div class="aurora a4" aria-hidden="true"></div>
+<div class="aurora a5" aria-hidden="true"></div>
+
+<div class="wrap">
+  <header>
+    <div class="chip">◈ LIQUIDGLASS UI · MODULE A</div>
+    <h1>物理光学增强<br><em>让玻璃真的像玻璃</em></h1>
+    <p class="lede">
+      在原有的高透明玻璃与水滴动效之上，Module A 增加五个物理层：粘滞液滴、菲涅尔掠边光、
+      厚度视差、水下焦散与重力水珠。全部由 Web Components + CSS 实现，无第三方依赖。
+    </p>
+    <div class="meta">
+      <span>A1 GOOEY PHYSICS</span>
+      <span>A2 FRESNEL RIM</span>
+      <span>A3 REAL DEPTH</span>
+      <span>A4 CAUSTICS</span>
+      <span>A5 GRAVITY DROPS</span>
+    </div>
+  </header>
+
+  <!-- ================= A1 ================= -->
+  <section id="a1">
+    <div class="sec-head"><span class="idx">A1</span><h2>水滴粘滞拉丝<small>Gooey Tabs &amp; Switch</small></h2></div>
+    <p class="hint">
+      切换标签或开关时，白色液滴先被拉出细颈，再断丝、回弹融合。实现方式：SVG
+      <code>feGaussianBlur</code> + <code>feColorMatrix</code> 阈值化做出表面张力，主液滴与尾随液滴用不同缓动时间差制造“拉丝”。
+    </p>
+    <div class="grid">
+      <lg-card>
+        <div class="pad">
+          <h3>水膜标签</h3>
+          <p>点击任意标签，观察液滴在标签之间拉伸、断开、再融合。</p>
+          <div style="margin-top:18px;">
+            <lg-tabs id="demoTabs">
+              <lg-tab>概览</lg-tab>
+              <lg-tab>图表</lg-tab>
+              <lg-tab>设置</lg-tab>
+            </lg-tabs>
+            <div class="tabs-log" id="tabsLog">当前激活：概览</div>
+          </div>
+          <div class="tiny">GOO FILTER · feGaussianBlur 6px · alpha threshold 22 −9</div>
+        </div>
+      </lg-card>
+      <lg-card>
+        <div class="pad">
+          <h3>液滴开关</h3>
+          <p>拨动开关，旋钮会先横向拉伸再回弹，尾随液滴被表面张力“拽”回来。</p>
+          <div class="switches" style="margin-top:8px;">
+            <lg-switch checked>消息通知</lg-switch>
+            <lg-switch>深色模式</lg-switch>
+            <lg-switch checked>自动刷新</lg-switch>
+          </div>
+          <div class="tiny">KNOB STRETCH 1.32× · SNAP BACK 0.5s</div>
+        </div>
+      </lg-card>
+    </div>
+  </section>
+
+  <!-- ================= A2 ================= -->
+  <section id="a2">
+    <div class="sec-head"><span class="idx">A2</span><h2>动态菲涅尔边缘光<small>Fresnel Rim Light</small></h2></div>
+    <p class="hint">
+      光标位置决定边缘光的最亮点：光束沿玻璃倒角掠过，靠近光标的边框被点亮，其余边缘保持幽暗。
+      实现方式：光标坐标写入 <code>--fx / --fy</code>，边缘用 <code>mask-composite</code> 只保留 2px 描边，再叠加径向渐变。
+    </p>
+    <div class="grid">
+      <lg-card>
+        <div class="pad">
+          <h3>晶体倒角</h3>
+          <p>把光标移到玻璃边缘附近，观察光束如何在倒角上聚成高光。</p>
+          <div class="tiny">RADIAL 170px · SCREEN BLEND · 2px RIM</div>
+        </div>
+      </lg-card>
+      <lg-card>
+        <div class="pad">
+          <h3>宽幅掠光</h3>
+          <p>大面积玻璃面板上，菲涅尔光会随视角连续移动，像高透水晶的掠射反射。</p>
+          <div class="tiny">POINTER-DRIVEN · NO JS LAYOUT</div>
+        </div>
+      </lg-card>
+      <lg-stat label="边缘照度" value="1.24" delta="+0.18" trend="up"></lg-stat>
+    </div>
+  </section>
+
+  <!-- ================= A3 ================= -->
+  <section id="a3">
+    <div class="sec-head"><span class="idx">A3</span><h2>3D 玻璃物理厚度视差<small>Parallax &amp; Depth</small></h2></div>
+    <p class="hint">
+      卡片轻微倾斜时，前表面高光、内部凝结水珠、底部文字按不同深度分层位移（14px / −8px / 26px），
+      模拟约 5mm 真实玻璃的前后层结构；倾斜角度由光标位置驱动。
+    </p>
+    <div class="grid">
+      <lg-card>
+        <div class="pad">
+          <h3>5mm 玻璃夹层</h3>
+          <p>文字浮在前表面，水珠沉在夹层里，高光贴在倒角上——三层以不同速度跟随光标。</p>
+          <div class="tiny">LAYER OFFSET 14 / −8 / 26px · TILT ±6°</div>
+        </div>
+      </lg-card>
+      <lg-card>
+        <div class="pad">
+          <h3>厚度带来的“呼吸感”</h3>
+          <p>倾斜时，玻璃内部的水珠比文字移动得更少，产生真实视差；松手后所有层一起回弹。</p>
+          <div class="tiny">PERSPECTIVE 900px · EASE-OUT 0.18s</div>
+        </div>
+      </lg-card>
+      <lg-stat label="视差层数" value="3" delta="+2" trend="up"></lg-stat>
+    </div>
+  </section>
+
+  <!-- ================= A4 ================= -->
+  <section id="a4">
+    <div class="sec-head"><span class="idx">A4</span><h2>水下焦散波光纹理<small>Caustics Light</small></h2></div>
+    <p class="hint">
+      整页背景与每块玻璃底层叠加流动的水波网状焦散：多层 repeating-radial-gradient 以不同速度漂移，
+      经 <code>overlay</code> 混合穿过玻璃，形成水下折射光感。屏幕上的背景光斑正在缓慢游动。
+    </p>
+    <div class="grid">
+      <lg-card>
+        <div class="pad">
+          <h3>背景焦散</h3>
+          <p>固定在视口的水下光网，42 秒一个循环，缓慢漂移并轻微旋转。</p>
+          <div class="tiny">SCREEN BLEND · 3 LAYERS · 42s LOOP</div>
+        </div>
+      </lg-card>
+      <lg-card>
+        <div class="pad">
+          <h3>玻璃内焦散</h3>
+          <p>每块玻璃底层还有一层更细的焦散，随悬停增强——玻璃内部像有水在流动。</p>
+          <div class="tiny">OVERLAY BLEND · 26s LOOP</div>
+        </div>
+      </lg-card>
+    </div>
+  </section>
+
+  <!-- ================= A5 ================= -->
+  <section id="a5">
+    <div class="sec-head"><span class="idx">A5</span><h2>水珠重力滑落与张力微动<small>Droplet Trickle &amp; Morphing</small></h2></div>
+    <p class="hint">
+      水珠每隔 4–8 秒随机选一颗沿玻璃滑落，留下瞬时湿痕并渐隐；鼠标靠近时，水珠会被“挤”向光标方向并轻微压扁。
+      保持页面打开几秒即可看到。
+    </p>
+    <lg-card class="wide-card">
+      <div class="hero">
+        <div>
+          <div class="tiny" style="margin:0 0 6px;">GRAVITY + SURFACE TENSION</div>
+          <div class="big">凝结、滑落、再凝结<em>4–8s</em></div>
+          <p>
+            水珠不是静态装饰：它们有重力、有张力，也会被光标推挤。
+            把鼠标在水珠附近缓慢移动，再等待一次自然滑落。
+          </p>
+          <div class="pill-row">
+            <span class="pill">随机重力滑落</span>
+            <span class="pill">瞬时湿痕</span>
+            <span class="pill">受力挤压形变</span>
+          </div>
+        </div>
+        <div>
+          <lg-stat label="下一颗滑落" value="≈ 6s" delta="实时" trend="up" style="min-width:230px;"></lg-stat>
+        </div>
+      </div>
+    </lg-card>
+  </section>
+
+  <footer>
+    <span>LiquidGlass UI · Module A · 由 <code>wc/liquidglass-ui.js</code> 单文件交付，零依赖</span>
+    <span><a href="demo.html">CSS 版 demo</a> · <a href="wc/test.html">Web Components demo</a> · <a href="wc/verify.html">全组件验证页</a></span>
+  </footer>
+</div>
+
+<script src="wc/liquidglass-ui.js"></script>
+<script>
+  (function () {
+    var log = document.getElementById('tabsLog');
+    var names = { 0: '概览', 1: '图表', 2: '设置' };
+    var tabs = document.getElementById('demoTabs');
+    tabs.addEventListener('lg-tab-select', function (e) {
+      var list = Array.prototype.slice.call(tabs.querySelectorAll('lg-tab'));
+      var i = list.indexOf(e.target);
+      if (log) log.textContent = '当前激活：' + (names[i] || '概览');
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,5 +1,7 @@
 # LiquidGlass UI
 
+> **版本说明**：`main` 分支为原版（v0.1）；`plus` 分支在原版基础上加入 Module A 物理光学增强（v0.2），本 README 描述 plus 版本。
+
 **水感液态玻璃组件库** — 高透明玻璃 + 彩色泛光 + 水滴动效。
 
 ## 定位
@@ -10,6 +12,22 @@
 - **水感动效**：凝结水珠、流光、弹跳缓动作为组件签名交互
 - **场景**：数据面板、汇报页、产品演示、动效展示
 
+## Module A：物理光学增强（v0.2）
+
+在基础玻璃之上，新增 5 个"物理层"，让玻璃具有真实的光学与力学质感：
+
+| 编号 | 能力 | 实现与效果 |
+|---|---|---|
+| A1 | 水滴粘滞拉丝 | `lg-tabs` / `lg-switch` 切换时，液滴先拉伸成"颈"、断丝、再融合；SVG `feGaussianBlur + feColorMatrix` 做表面张力，主液滴与尾随液滴用缓动时间差制造拉丝 |
+| A2 | 动态菲涅尔边缘光 | 光标坐标写入 `--fx / --fy`，用 `mask-composite` 只保留 2px 描边，再叠加径向渐变与内侧泛光：光束沿玻璃倒角掠过 |
+| A3 | 3D 玻璃物理厚度视差 | 卡片悬浮时轻微倾斜；前表面高光、内部水珠、文字按不同深度（−8px / 14px / 26px）分层位移，模拟约 5mm 玻璃厚度 |
+| A4 | 水下焦散波光纹理 | 页面背景与每块玻璃底层叠加多层流动焦散光网（`overlay` / `screen` 混合），形成水下折射光感 |
+| A5 | 水珠重力滑落与张力微动 | 水珠每 4–8 秒随机沿玻璃滑落并留下瞬时湿痕；光标靠近时水珠朝光标方向挤压形变 |
+
+预览 Module A：`npm start` 后打开 <http://127.0.0.1:4173/showcase.html>。
+
+![Module A 物理光学增强](docs/showcase-desktop.webp)
+
 ## 结构
 
 ```
@@ -18,10 +36,15 @@ LiquidGlass-UI/
 ├── glass.css       # 玻璃基础材质（场景背景/玻璃面板/水珠层）
 ├── components.css  # 15 个组件样式
 ├── demo.html       # 统一演示页（全部组件 + 交互）
+├── showcase.html   # Module A 物理光学增强演示页
+├── serve.mjs       # 零依赖本地预览服务器（npm start）
 ├── package.json    # npm 发布元数据
+├── tools/          # 浏览器验证脚本（CDP，零依赖）
 └── wc/             # Web Components 封装
     ├── liquidglass-ui.js  # 原生 Custom Elements（单文件、零依赖）
-    └── test.html          # Web Components 演示页
+    ├── test.html          # Web Components 演示页（雨滴/光栅/镜头/控制面板）
+    ├── verify.html        # 全 15 个组件的验证页
+    └── isolated.html      # 无外部 CSS 的隔离测试页
 ```
 
 ## 组件清单
@@ -35,6 +58,14 @@ LiquidGlass-UI/
 | 导航 | Tabs 标签页 |
 | 反馈 | Badge 徽章、Toast 提示、Dropdown 下拉 |
 | 容器 | Card、Glass 玻璃面板 |
+| 增强层 | Rain 雨滴、Grating 光栅、Controls 控制面板、Lens 镜头玻璃 |
+
+## 本地预览
+
+```bash
+npm start                 # 等价 node serve.mjs，默认 127.0.0.1:4173
+# demo.html / showcase.html / wc/test.html / wc/verify.html
+```
 
 ## 使用（CSS 方式）
 
@@ -68,9 +99,11 @@ LiquidGlass-UI/
 
 组件清单：`lg-button` `lg-card` `lg-input` `lg-select` `lg-switch`
 `lg-badge` `lg-stat` `lg-progress` `lg-tabs` `lg-tab` `lg-toast`
+`lg-rain` `lg-grating` `lg-controls` `lg-lens`
 
-特性：Shadow DOM 隔离、属性驱动、`lg-click`/`lg-toggle`/`lg-input` 等事件透传、零依赖。
-预览：打开 `wc/test.html`；API 见 `window.LiquidGlassUI`。
+特性：Shadow DOM 隔离、属性驱动、`lg-click`/`lg-toggle`/`lg-input` 等事件透传、零依赖；
+Module A 的 goo 滤镜、菲涅尔边缘光、厚度视差、焦散与水珠滑落均内置在单文件中，无需额外依赖。
+预览：打开 `wc/test.html` 或 `showcase.html`；API 见 `window.LiquidGlassUI`。
 
 ## 在线演示
 
@@ -80,5 +113,6 @@ LiquidGlass-UI/
 ## 后续路线
 
 - [x] 组件拆包发布（npm + Web Component）
+- [x] Module A 物理光学增强（Gooey / Fresnel / Depth / Caustics / Droplet）
 - [ ] 参数化调参生成器（可视化导出代码）
 - [ ] AI Skill 技能包（SKILL.md + 组件 JSON 元数据）
