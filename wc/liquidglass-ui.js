@@ -920,6 +920,7 @@
      ============================================================ */
   class LgButton extends HTMLElement {
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const cls = ['lg-btn'];
       const v = this.getAttribute('variant');
       if (v && v !== 'default') cls.push('lg-btn--' + v);
@@ -960,6 +961,14 @@
       rootEl.style.setProperty('--sx', (px * 100).toFixed(1) + '%');
       rootEl.style.setProperty('--sy', (py * 100).toFixed(1) + '%');
 
+      // A2 菲涅尔边缘光：光标在玻璃表面上的局部坐标（px）
+      rootEl.style.setProperty('--fx', (px * rect.width).toFixed(1) + 'px');
+      rootEl.style.setProperty('--fy', (py * rect.height).toFixed(1) + 'px');
+
+      // A3 3D 厚度视差：归一化 -1..1，交给 CSS 做分层位移
+      rootEl.style.setProperty('--tx', ((px - 0.5) * 2).toFixed(3));
+      rootEl.style.setProperty('--ty', ((py - 0.5) * 2).toFixed(3));
+
       // 透视倾斜：中心为 0，边缘最大 ±6deg
       rootEl.style.setProperty('--ry', ((px - 0.5) * 12).toFixed(2) + 'deg');
       rootEl.style.setProperty('--rx', ((0.5 - py) * 12).toFixed(2) + 'deg');
@@ -969,6 +978,8 @@
       rootEl.classList.remove('lg-tilt', 'lg-tilt-pressed');
       rootEl.style.setProperty('--rx', '0deg');
       rootEl.style.setProperty('--ry', '0deg');
+      rootEl.style.setProperty('--tx', '0');
+      rootEl.style.setProperty('--ty', '0');
     });
 
     /* --- ④ 按压凹陷 --- */
@@ -1012,6 +1023,84 @@
       rootEl.appendChild(st);
       setTimeout(function () { st.remove(); }, 1700);
     });
+
+    /* --- A5 水珠受力挤压：光标靠近时朝光标方向拉伸形变 --- */
+    let squeezeRaf = null;
+    let lastPointer = null;
+    rootEl.addEventListener('pointermove', function (e) {
+      lastPointer = e;
+      if (squeezeRaf) return;
+      squeezeRaf = requestAnimationFrame(function () {
+        squeezeRaf = null;
+        if (!lastPointer) return;
+        const rect = rootEl.getBoundingClientRect();
+        const px = lastPointer.clientX - rect.left;
+        const py = lastPointer.clientY - rect.top;
+        const drops = rootEl.querySelectorAll('.lg-droplet');
+        for (let i = 0; i < drops.length; i++) {
+          const d = drops[i];
+          const dr = d.getBoundingClientRect();
+          const cx = dr.left - rect.left + dr.width / 2;
+          const cy = dr.top - rect.top + dr.height / 2;
+          const dx = cx - px;
+          const dy = cy - py;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 90) {
+            const f = 1 - dist / 90;
+            d.style.transform =
+              'translate(' + (-dx * 0.07 * f).toFixed(1) + 'px,' + (-dy * 0.07 * f).toFixed(1) + 'px) ' +
+              'scale(' + (1 + 0.22 * f).toFixed(2) + ',' + (1 - 0.14 * f).toFixed(2) + ')';
+            d.style.borderRadius = '56% 44% 52% 48% / 62% 58% 42% 38%';
+          } else {
+            d.style.transform = '';
+            d.style.borderRadius = '';
+          }
+        }
+      });
+    });
+
+    /* --- A5 水珠重力滑落：随机选一颗水珠滑下并留下湿痕 --- */
+    function runTrickle() {
+      if (!rootEl.isConnected) return;
+      const drops = rootEl.querySelectorAll('.lg-droplet');
+      if (!drops.length) return;
+      const d = drops[Math.floor(Math.random() * drops.length)];
+      const rect = rootEl.getBoundingClientRect();
+      const dr = d.getBoundingClientRect();
+      if (dr.width < 2) return;
+      const x = dr.left - rect.left + dr.width / 2;
+      const y = dr.top - rect.top;
+      const dist = 42 + Math.random() * 58;
+      const trail = document.createElement('span');
+      trail.className = 'lg-wet-trail';
+      trail.style.left = (x - 1.5) + 'px';
+      trail.style.top = (y + dr.height * 0.55) + 'px';
+      trail.style.height = '0px';
+      rootEl.appendChild(trail);
+      trail.animate([
+        { height: '0px', opacity: 0.55 },
+        { height: (dist + 10) + 'px', opacity: 0.32, offset: 0.7 },
+        { height: (dist + 18) + 'px', opacity: 0 },
+      ], { duration: 2300, easing: 'cubic-bezier(0.4, 0, 0.6, 1)' }).onfinish = function () { trail.remove(); };
+      const anim = d.animate([
+        { transform: 'translate(0, 0) scale(1, 1)', opacity: 1 },
+        { transform: 'translate(0, ' + (dist * 0.4) + 'px) scale(0.86, 1.3)', opacity: 0.95, offset: 0.45 },
+        { transform: 'translate(0, ' + dist + 'px) scale(0.68, 1.55)', opacity: 0 },
+      ], { duration: 1900, easing: 'cubic-bezier(0.45, 0.05, 0.55, 0.95)' });
+      anim.onfinish = function () {
+        d.style.transform = '';
+        d.style.borderRadius = '';
+        d.style.opacity = '';
+      };
+    }
+    function scheduleTrickle() {
+      setTimeout(function () {
+        if (!rootEl.isConnected) return;
+        runTrickle();
+        scheduleTrickle();
+      }, 3600 + Math.random() * 4200);
+    }
+    scheduleTrickle();
   }
 
   /* ============================================================
@@ -1022,14 +1111,18 @@
   class LgCard extends HTMLElement {
     static get observedAttributes() { return ['scale']; }
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const sh = this.attachShadow({ mode: 'open' });
       const s = parseFloat(this.getAttribute('scale') || '1');
       sh.innerHTML =
         '<style>' + LG_CSS + '</style>' +
         '<div class="lg-glass lg-card" style="height:100%;--lg-scale:' + s + ';">' +
+        '<span class="lg-caustics" aria-hidden="true"></span>' +
         '<span class="lg-spotlight" aria-hidden="true"></span>' +
         '<span class="lg-liquid-flow" aria-hidden="true"></span>' +
         '<span class="lg-ripple-edge" aria-hidden="true"></span>' +
+        '<span class="lg-fresnel" aria-hidden="true"></span>' +
+        '<span class="lg-fresnel-glow" aria-hidden="true"></span>' +
         '<span class="lg-droplets" aria-hidden="true">' +
         '  <span class="lg-droplet" style="--x:6%;--y:14%;--s:9px;--d:0s"></span>' +
         '  <span class="lg-droplet" style="--x:22%;--y:64%;--s:7px;--d:1.1s"></span>' +
@@ -1057,6 +1150,7 @@
      ============================================================ */
   class LgInput extends HTMLElement {
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const cls = ['lg-input'];
       if (this.hasAttribute('error')) cls.push('lg-input--error');
       const input = document.createElement('input');
@@ -1089,6 +1183,7 @@
      ============================================================ */
   class LgSelect extends HTMLElement {
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const slotted = this.innerHTML;
       const sel = document.createElement('select');
       sel.className = 'lg-select';
@@ -1106,16 +1201,33 @@
      属性: checked | on
      用法: <lg-switch checked>消息通知</lg-switch>
      ============================================================ */
+  /* Module A 共享计数器：用于生成 shadow 内唯一的 SVG goo 滤镜 id */
+  var gooSeq = 0;
+
   class LgSwitch extends HTMLElement {
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
+      const self = this;
       const on = this.hasAttribute('checked') || this.hasAttribute('on');
+      const uid = 'lg-sw-goo-' + (++gooSeq);
       const row = document.createElement('div');
       row.className = 'lg-switch-row';
       const label = document.createElement('span');
       label.style.cssText = 'position:relative;z-index:4;';
       label.innerHTML = '<slot></slot>';
       const sw = document.createElement('div');
-      sw.className = 'lg-switch' + (on ? ' on' : '');
+      sw.className = 'lg-switch lg-switch--goo' + (on ? ' on' : '');
+      sw.style.setProperty('--sw-left', on ? '22px' : '2px');
+      sw.innerHTML =
+        '<svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>' +
+        '<filter id="' + uid + '" x="-40%" y="-70%" width="180%" height="240%">' +
+        '<feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>' +
+        '<feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -8" result="goo"/>' +
+        '<feComposite in="SourceGraphic" in2="goo" operator="atop"/>' +
+        '</filter></defs></svg>' +
+        '<span class="lg-switch__goo" style="filter:url(#' + uid + ')">' +
+        '<span class="lg-switch__tail"></span><span class="lg-switch__blob"></span>' +
+        '</span>';
       row.appendChild(label);
       row.appendChild(sw);
 
@@ -1124,7 +1236,13 @@
 
       sw.addEventListener('click', () => {
         sw.classList.toggle('on');
-        this.dispatchEvent(new CustomEvent('lg-toggle', { detail: { on: sw.classList.contains('on') }, bubbles: true, composed: true }));
+        const isOn = sw.classList.contains('on');
+        sw.style.setProperty('--sw-left', isOn ? '22px' : '2px');
+        sw.classList.remove('lg-switch--anim');
+        void sw.offsetWidth;
+        sw.classList.add('lg-switch--anim');
+        setTimeout(() => sw.classList.remove('lg-switch--anim'), 520);
+        this.dispatchEvent(new CustomEvent('lg-toggle', { detail: { on: isOn }, bubbles: true, composed: true }));
       });
     }
     checked() {
@@ -1139,6 +1257,7 @@
      ============================================================ */
   class LgBadge extends HTMLElement {
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const cls = ['lg-badge'];
       const v = this.getAttribute('variant');
       if (v) cls.push('lg-badge--' + v);
@@ -1158,6 +1277,7 @@
   class LgStat extends HTMLElement {
     static get observedAttributes() { return ['scale']; }
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const trend = this.getAttribute('trend');
       const arrow = trend === 'down' ? '▼' : '▲';
       const trendCls = trend === 'down' ? 'lg-stat__delta--down' : 'lg-stat__delta--up';
@@ -1167,9 +1287,12 @@
       sh.innerHTML =
         '<style>' + LG_CSS + '</style>' +
         '<div class="lg-glass lg-stat" style="--lg-scale:' + s + ';">' +
+        '<span class="lg-caustics" aria-hidden="true"></span>' +
         '<span class="lg-spotlight" aria-hidden="true"></span>' +
         '<span class="lg-liquid-flow" aria-hidden="true"></span>' +
         '<span class="lg-ripple-edge" aria-hidden="true"></span>' +
+        '<span class="lg-fresnel" aria-hidden="true"></span>' +
+        '<span class="lg-fresnel-glow" aria-hidden="true"></span>' +
         '<span class="lg-stat__label">' + (this.getAttribute('label') || '') + '</span>' +
         '<span class="lg-stat__value">' + (this.getAttribute('value') || '') + '</span>' +
         (delta ? '<span class="lg-stat__delta ' + trendCls + '">' + arrow + ' ' + delta + '</span>' : '') +
@@ -1190,6 +1313,7 @@
      ============================================================ */
   class LgProgress extends HTMLElement {
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const v = Math.max(0, Math.min(100, parseFloat(this.getAttribute('value')) || 0));
       const cls = ['lg-progress'];
       const s = this.getAttribute('size');
@@ -1215,21 +1339,87 @@
      ============================================================ */
   class LgTabs extends HTMLElement {
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const self = this;
+      const uid = 'lg-tabs-goo-' + (++gooSeq);
       const sh = this.attachShadow({ mode: 'open' });
-      sh.innerHTML = '<style>' + LG_CSS + '</style><div class="lg-tabs"><slot></slot></div>';
-      this.addEventListener('lg-tab-select', function (e) {
-        Array.prototype.forEach.call(self.children, function (c) {
+      sh.innerHTML =
+        '<style>' + LG_CSS + '</style>' +
+        '<svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>' +
+        '<filter id="' + uid + '" x="-30%" y="-70%" width="160%" height="240%">' +
+        '<feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>' +
+        '<feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9" result="goo"/>' +
+        '<feComposite in="SourceGraphic" in2="goo" operator="atop"/>' +
+        '</filter></defs></svg>' +
+        '<div class="lg-tabs" role="tablist">' +
+        '<div class="lg-tabs__goo" style="filter:url(#' + uid + ')">' +
+        '<span class="lg-tabs__tail"></span><span class="lg-tabs__blob"></span>' +
+        '</div>' +
+        '<div class="lg-tabs__slot"><slot></slot></div>' +
+        '</div>';
+
+      this._tabsEl = sh.querySelector('.lg-tabs');
+      this._blob = sh.querySelector('.lg-tabs__blob');
+      this._tail = sh.querySelector('.lg-tabs__tail');
+
+      const move = (target) => {
+        if (!self._blob || !target) return;
+        const btn = target.shadowRoot && target.shadowRoot.querySelector('.lg-tab');
+        if (!btn) return;
+        const tabsRect = self._tabsEl.getBoundingClientRect();
+        const btnRect = btn.getBoundingClientRect();
+        if (!btnRect.width) return;
+        const left = btnRect.left - tabsRect.left - 6;
+        self._blob.style.left = left + 'px';
+        self._blob.style.width = btnRect.width + 'px';
+        self._tail.style.left = left + 'px';
+        self._tail.style.width = btnRect.width + 'px';
+      };
+
+      this.addEventListener('lg-tab-select', (e) => {
+        Array.prototype.forEach.call(self.children, (c) => {
           if (c.tagName === 'LG-TAB') c.deactivate();
         });
         const target = e.target;
-        if (target.tagName === 'LG-TAB') target.activate();
+        if (target && target.tagName === 'LG-TAB') {
+          target.activate();
+          self._active = target;
+          move(target);
+        }
+      });
+
+      const initialise = () => {
+        Array.prototype.forEach.call(self.children, (c) => {
+          if (c.tagName === 'LG-TAB') c.setAttribute('data-goo', '');
+        });
+        const tabs = Array.prototype.slice.call(self.querySelectorAll('lg-tab'));
+        const active = tabs.filter((t) => t.classList.contains('active'))[0] || tabs[0];
+        if (active) {
+          active.activate();
+          self._active = active;
+          move(active);
+          setTimeout(() => move(active), 60);
+        }
+      };
+      requestAnimationFrame(initialise);
+
+      if (window.ResizeObserver) {
+        const ro = new ResizeObserver(() => {
+          const a = self._active || self.querySelector('lg-tab');
+          if (a) move(a);
+        });
+        ro.observe(this);
+      }
+      window.addEventListener('resize', () => {
+        const a = self._active || self.querySelector('lg-tab');
+        if (a) move(a);
       });
     }
   }
 
   class LgTab extends HTMLElement {
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const btn = document.createElement('button');
       btn.className = 'lg-tab';
       btn.innerHTML = '<slot></slot>';
@@ -1255,6 +1445,7 @@
      ============================================================ */
   class LgToast extends HTMLElement {
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const icons = { success: '✓', warning: '⚠', danger: '✕' };
       const type = this.getAttribute('type') || 'success';
       const icon = this.getAttribute('icon') || icons[type] || '•';
@@ -1444,6 +1635,212 @@
 `;
 
   /* ============================================================
+     Module A — 视觉与物理光学增强层
+     A1 水滴粘滞拉丝（Gooey Tabs / Switch）
+     A2 动态菲涅尔边缘光（Fresnel Rim Light）
+     A3 3D 玻璃厚度视差（Parallax & Depth）
+     A4 水下焦散波光（Caustics）
+     A5 水珠重力滑落 / 受力挤压（Trickle & Morphing）
+     ============================================================ */
+  LG_CSS += `
+/* ---------- A2 动态菲涅尔边缘光 ---------- */
+.lg-glass .lg-fresnel {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  z-index: 5;
+  background:
+    radial-gradient(320px circle at var(--fx, 50%) var(--fy, 50%),
+      rgba(120, 210, 255, 0.22) 0%,
+      rgba(120, 210, 255, 0) 62%),
+    radial-gradient(170px circle at var(--fx, 50%) var(--fy, 50%),
+      rgba(255, 255, 255, 0.98) 0%,
+      rgba(165, 228, 255, 0.72) 22%,
+      rgba(165, 228, 255, 0.18) 46%,
+      rgba(165, 228, 255, 0) 66%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.28s ease, transform 0.18s ease-out;
+  mix-blend-mode: screen;
+  filter: saturate(1.2) brightness(1.05);
+}
+.lg-glass:hover .lg-fresnel { opacity: 1; }
+
+/* 菲涅尔内侧泛光：让掠边光在玻璃内部也留下柔和光晕 */
+.lg-glass .lg-fresnel-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0;
+  background: radial-gradient(240px circle at var(--fx, 50%) var(--fy, 50%),
+    rgba(150, 225, 255, 0.26) 0%,
+    rgba(150, 225, 255, 0.08) 40%,
+    rgba(150, 225, 255, 0) 70%);
+  mix-blend-mode: screen;
+  transition: opacity 0.3s ease, transform 0.18s ease-out;
+  transform: translate(calc(var(--tx, 0) * 18px), calc(var(--ty, 0) * 18px));
+}
+.lg-glass:hover .lg-fresnel-glow { opacity: 1; }
+
+/* ---------- A4 水下焦散波光 ---------- */
+.lg-glass .lg-caustics {
+  position: absolute;
+  inset: -25%;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  mix-blend-mode: overlay;
+  opacity: 0.5;
+  background:
+    repeating-radial-gradient(circle at 28% 32%, rgba(255, 255, 255, 0.30) 0 1px, rgba(255, 255, 255, 0) 2px 26px),
+    repeating-radial-gradient(circle at 72% 66%, rgba(160, 240, 255, 0.24) 0 1px, rgba(160, 240, 255, 0) 2px 34px),
+    radial-gradient(60% 50% at 60% 40%, rgba(120, 220, 255, 0.20), transparent 70%);
+  background-size: 220px 220px, 300px 300px, 100% 100%;
+  animation: lg-caustic-flow 26s linear infinite;
+  filter: blur(0.6px) saturate(1.25);
+  transition: opacity 0.35s ease, transform 0.18s ease-out;
+}
+@keyframes lg-caustic-flow {
+  0%   { background-position: 0 0, 0 0, 50% 50%; }
+  50%  { background-position: 64px 42px, -84px 32px, 50% 50%; }
+  100% { background-position: 0 0, 0 0, 50% 50%; }
+}
+.lg-glass:hover .lg-caustics { opacity: 0.78; }
+
+/* ---------- A3 3D 玻璃厚度视差 ---------- */
+.lg-card .lg-card__body {
+  transform: translate(calc(var(--tx, 0) * 14px), calc(var(--ty, 0) * 14px));
+  transition: transform 0.18s ease-out;
+}
+.lg-card .lg-droplets {
+  transform: translate(calc(var(--tx, 0) * -8px), calc(var(--ty, 0) * -8px));
+  transition: transform 0.18s ease-out;
+}
+.lg-card .lg-spotlight,
+.lg-stat .lg-spotlight {
+  transform: translate(calc(var(--tx, 0) * 26px), calc(var(--ty, 0) * 26px));
+  transition: transform 0.18s ease-out, opacity 0.3s ease;
+}
+.lg-stat .lg-stat__label,
+.lg-stat .lg-stat__value,
+.lg-stat .lg-stat__delta {
+  transform: translate(calc(var(--tx, 0) * 9px), calc(var(--ty, 0) * 9px));
+  transition: transform 0.18s ease-out;
+}
+.lg-glass .lg-fresnel {
+  transform: translate(calc(var(--tx, 0) * 20px), calc(var(--ty, 0) * 20px));
+}
+.lg-tilt {
+  transform:
+    perspective(900px)
+    scale(var(--lg-scale, 1))
+    rotateX(var(--rx, 0deg))
+    rotateY(var(--ry, 0deg));
+}
+
+/* ---------- A5 水珠滑落 / 受力形变 ---------- */
+.lg-droplet {
+  transition: transform 0.45s var(--lg-ease), border-radius 0.45s var(--lg-ease),
+              opacity 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+.lg-wet-trail {
+  position: absolute;
+  width: 3px;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 2;
+  transform-origin: top center;
+  background: linear-gradient(to bottom,
+    rgba(255, 255, 255, 0.34),
+    rgba(255, 255, 255, 0.10) 62%,
+    rgba(255, 255, 255, 0));
+  filter: blur(0.4px);
+}
+
+/* ---------- A1 水滴粘滞拉丝：Tabs ---------- */
+.lg-tabs { position: relative; }
+.lg-tabs__goo {
+  position: absolute;
+  inset: 6px;
+  pointer-events: none;
+  z-index: 0;
+}
+.lg-tabs__blob,
+.lg-tabs__tail {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.8),
+    0 0 18px rgba(150, 220, 255, 0.35);
+}
+.lg-tabs__blob {
+  transition: left 0.45s var(--lg-ease), width 0.45s var(--lg-ease);
+}
+.lg-tabs__tail {
+  opacity: 0.85;
+  filter: blur(0.2px);
+  transition: left 0.34s 0.05s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.34s 0.05s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.lg-tabs__slot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 4px;
+}
+/* 有 blob 时，标签自身背景透明，避免盖住粘滞水滴 */
+:host([data-goo]) .lg-tab { background: transparent !important; }
+:host([data-goo]) .lg-tab.active { color: #07131f; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25); }
+
+/* ---------- A1 水滴粘滞拉丝：Switch ---------- */
+.lg-switch--goo::after { display: none; }
+.lg-switch--goo { overflow: visible; }
+.lg-switch__goo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.lg-switch__blob,
+.lg-switch__tail {
+  position: absolute;
+  top: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.lg-switch__blob {
+  left: var(--sw-left, 2px);
+  transition: left 0.42s var(--lg-ease);
+}
+.lg-switch__tail {
+  left: var(--sw-left, 2px);
+  opacity: 0.88;
+  filter: blur(0.2px);
+  transition: left 0.3s 0.06s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.lg-switch--anim .lg-switch__blob { animation: lg-goo-knob 0.5s var(--lg-ease); }
+@keyframes lg-goo-knob {
+  0%   { transform: scale(1, 1); }
+  35%  { transform: scale(1.32, 0.78); }
+  70%  { transform: scale(0.9, 1.12); }
+  100% { transform: scale(1, 1); }
+}
+`;
+
+
+  /* ============================================================
      <lg-rain>  雨滴装饰层
      属性: density="3-6"（滑落雨滴数）  global（全局覆盖整个视口）
      用法: <lg-rain density="4"></lg-rain>  （放在容器内）
@@ -1451,6 +1848,7 @@
      ============================================================ */
   class LgRain extends HTMLElement {
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const sh = this.attachShadow({ mode: 'open' });
       const density = Math.max(2, Math.min(8, parseInt(this.getAttribute('density'), 10) || 4));
       const isGlobal = this.hasAttribute('global');
@@ -1499,6 +1897,7 @@
      ============================================================ */
   class LgGrating extends HTMLElement {
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const sh = this.attachShadow({ mode: 'open' });
       sh.innerHTML = '<style>' + LG_CSS + '</style><div class="lg-grating" id="g"></div>';
       this._el = sh.querySelector('#g');
@@ -1542,6 +1941,7 @@
      ============================================================ */
   class LgControls extends HTMLElement {
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const sh = this.attachShadow({ mode: 'open' });
       sh.innerHTML =
         '<style>' + LG_CSS + '</style>' +
@@ -1608,6 +2008,7 @@
 
   class LgLens extends HTMLElement {
     connectedCallback() {
+      if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       var self = this;
       self._uid = '__lg_lens_' + (++lensSeq);
       var FILTER_ID = self._uid + '_filter';
@@ -1658,6 +2059,7 @@
       // ---------- Shadow DOM 结构 ----------
       var width = this.getAttribute('width') || '100%';
       var height = this.getAttribute('height') || '400';
+      if (/^\d+(\.\d+)?$/.test(height)) height += 'px';   // 兼容 height="420" 的旧写法
       var sh = this.attachShadow({ mode: 'open' });
       sh.innerHTML =
         '<style>' + LG_CSS + LENS_EXTRA_CSS + '</style>' +
@@ -1671,8 +2073,8 @@
         '    <div class="lg-lens__grain"></div>' +
         '  </div>' +
         '  <div class="lg-lens__frame"></div>' +
-        '</div>' +
-        (this.hasAttribute('controls') ? LENS_PANEL_HTML : '');
+        (this.hasAttribute('controls') ? LENS_PANEL_HTML : '') +
+        '</div>';
 
       self._root = sh;
       self._scene = sh.querySelector('.lg-lens__scene');
@@ -2001,7 +2403,7 @@
   });
 
   window.LiquidGlassUI = {
-    version: '0.1.0',
+    version: '0.2.0',
     components: components,
     css: LG_CSS
   };

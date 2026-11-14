@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LiquidGlass UI — 全组件验证页</title>
+<style>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: linear-gradient(120deg, #ff6ec4, #7873f5, #4ade80, #38bdf8);
+    background-size: 300% 300%;
+    animation: bg 18s ease infinite;
+    padding: 40px 20px 120px;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "Microsoft YaHei", sans-serif;
+    color: #fff;
+  }
+  @keyframes bg { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+  .wrap { max-width: 980px; margin: 0 auto; padding-right: 270px; }
+  @media (max-width: 1120px) { .wrap { padding-right: 20px; } }
+  h1 { font-size: 26px; font-weight: 600; text-shadow: 0 1px 8px rgba(0,0,0,0.2); }
+  .sub { color: rgba(255,255,255,0.72); margin-bottom: 12px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.72); margin: 36px 0 14px; font-weight: 600; }
+  .row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  /* 宿主元素布局（组件自身未声明 :host，见验证报告） */
+  lg-card, lg-stat, lg-tabs, lg-rain, lg-grating, lg-lens { display: block; }
+  .rain-box { position: relative; height: 220px; border-radius: 20px; overflow: hidden; }
+  .toast-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+  pre {
+    background: rgba(0,0,0,0.25);
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 12.5px;
+    overflow-x: auto;
+    color: rgba(255,255,255,0.85);
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0;
+  }
+  code { font-family: ui-monospace, Consolas, monospace; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>◈ LiquidGlass UI — 全组件验证页</h1>
+  <p class="sub">覆盖 README 声明的组件 + 增强层 <code>lg-rain / lg-grating / lg-controls / lg-lens</code>。右下角控制面板实时调控。</p>
+
+  <h2>按钮 &lt;lg-button&gt;</h2>
+  <div class="row" id="buttons">
+    <lg-button variant="primary" id="btnPrimary">主要按钮</lg-button>
+    <lg-button id="btnDefault">默认按钮</lg-button>
+    <lg-button variant="success">成功</lg-button>
+    <lg-button variant="warning">警告</lg-button>
+    <lg-button variant="danger">危险</lg-button>
+    <lg-button variant="ghost">幽灵</lg-button>
+    <lg-button size="sm">小号</lg-button>
+    <lg-button size="lg">大号</lg-button>
+    <lg-button disabled id="btnDisabled">禁用</lg-button>
+  </div>
+
+  <h2>表单 &lt;lg-input&gt; &lt;lg-select&gt; &lt;lg-switch&gt;</h2>
+  <div class="grid">
+    <lg-card>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:4px;">
+        <div style="font-size:13px;color:rgba(255,255,255,0.72);">输入框</div>
+        <lg-input id="inputName" placeholder="请输入姓名" value="初始值"></lg-input>
+        <lg-input id="inputError" type="email" value="bad@format" error></lg-input>
+        <div style="font-size:13px;color:rgba(255,255,255,0.72);">下拉</div>
+        <lg-select id="selectRole">
+          <option>设计师</option>
+          <option selected>前端工程师</option>
+          <option>产品经理</option>
+        </lg-select>
+        <lg-switch id="switchNotice" checked>消息通知</lg-switch>
+        <lg-switch id="switchDark">深色模式</lg-switch>
+      </div>
+    </lg-card>
+    <lg-card>
+      <div style="display:flex;flex-direction:column;gap:12px;padding:4px;">
+        <div style="font-size:13px;color:rgba(255,255,255,0.72);">徽章</div>
+        <div class="row">
+          <lg-badge variant="accent" dot>在线</lg-badge>
+          <lg-badge variant="success">已通过</lg-badge>
+          <lg-badge variant="warning">待审核</lg-badge>
+          <lg-badge variant="danger">已驳回</lg-badge>
+          <lg-badge>默认</lg-badge>
+        </div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.72);">进度</div>
+        <lg-progress id="progressA" value="82" size="lg"></lg-progress>
+        <lg-progress id="progressB" value="45"></lg-progress>
+        <lg-progress id="progressC" value="96" size="sm"></lg-progress>
+        <lg-toast id="toastSuccess" type="success">操作成功</lg-toast>
+        <lg-toast type="warning">需要确认</lg-toast>
+        <lg-toast type="danger">操作失败</lg-toast>
+      </div>
+    </lg-card>
+  </div>
+
+  <h2>指标卡 &lt;lg-stat&gt;</h2>
+  <div class="grid">
+    <lg-stat label="月活跃用户" value="128,493" delta="+12.5%" trend="up"></lg-stat>
+    <lg-stat label="营收" value="¥86.2万" delta="+8.3%" trend="up"></lg-stat>
+    <lg-stat label="流失率" value="2.1%" delta="-0.4%" trend="down"></lg-stat>
+    <lg-stat label="缩放 0.9" value="88" delta="+2.0%" trend="up" scale="0.9"></lg-stat>
+  </div>
+
+  <h2>标签页 &lt;lg-tabs&gt; / &lt;lg-tab&gt;</h2>
+  <lg-card>
+    <div style="padding:4px;">
+      <lg-tabs id="tabsDemo">
+        <lg-tab>概览</lg-tab>
+        <lg-tab>图表</lg-tab>
+        <lg-tab>设置</lg-tab>
+      </lg-tabs>
+      <p style="font-size:14px;color:rgba(255,255,255,0.72);margin:14px 0 0;">标签页内容区（点击标签切换激活态）。</p>
+    </div>
+  </lg-card>
+
+  <h2>卡片 &lt;lg-card&gt;</h2>
+  <div class="grid">
+    <lg-card>
+      <h3 style="margin:0 0 8px;font-size:16px;">云同步</h3>
+      <p style="margin:0;font-size:13.5px;color:rgba(255,255,255,0.72);line-height:1.5;">双层流光 + 边缘水波纹 + 凝结水珠。</p>
+    </lg-card>
+    <lg-card scale="0.95">
+      <h3 style="margin:0 0 8px;font-size:16px;">隐私保护</h3>
+      <p style="margin:0;font-size:13.5px;color:rgba(255,255,255,0.72);line-height:1.5;">端到端加密，玻璃之后只有你选择展示的内容。</p>
+    </lg-card>
+  </div>
+
+  <h2>雨滴 &lt;lg-rain&gt;</h2>
+  <div class="grid">
+    <div class="rain-box">
+      <lg-card style="height:100%;">
+        <h3 style="margin:0 0 8px;font-size:16px;">雨滴卡片</h3>
+        <p style="margin:0;font-size:13.5px;color:rgba(255,255,255,0.72);line-height:1.5;">凝结水珠 + 四边溅水 + 滑落雨滴。</p>
+      </lg-card>
+      <lg-rain density="4"></lg-rain>
+    </div>
+    <div class="rain-box">
+      <lg-card style="height:100%;">
+        <h3 style="margin:0 0 8px;font-size:16px;">更密集</h3>
+        <p style="margin:0;font-size:13.5px;color:rgba(255,255,255,0.72);line-height:1.5;">density=6。</p>
+      </lg-card>
+      <lg-rain density="6"></lg-rain>
+    </div>
+  </div>
+
+  <h2>光栅 &lt;lg-grating&gt;</h2>
+  <lg-grating id="gratingDemo" count="8" base="7" opacity="0.45"></lg-grating>
+
+  <h2>镜头玻璃 &lt;lg-lens&gt;</h2>
+  <lg-lens id="lensDemo" width="100%" height="360" controls></lg-lens>
+
+  <h2>事件日志（lg-click / lg-toggle / lg-input / lg-change / lg-tab-select / lg-control）</h2>
+  <pre id="eventLog" style="max-height:180px;overflow:auto;">等待交互…</pre>
+</div>
+
+<lg-controls id="demoControls"></lg-controls>
+
+<script src="liquidglass-ui.js"></script>
+<script>
+  (function () {
+    var log = document.getElementById('eventLog');
+    var empty = true;
+    function out(msg) {
+      log.textContent = (empty ? '' : log.textContent + '\n') + '> ' + msg;
+      empty = false;
+      log.scrollTop = log.scrollHeight;
+    }
+    ['lg-click', 'lg-toggle', 'lg-input', 'lg-change', 'lg-tab-select'].forEach(function (type) {
+      document.addEventListener(type, function (e) {
+        var d = e.detail ? JSON.stringify(e.detail) : '';
+        var src = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '?';
+        out(type + ' ← ' + src + (d ? ' ' + d : ''));
+      });
+    });
+    document.getElementById('demoControls').addEventListener('lg-control', function (e) {
+      out('lg-control ← controls ' + JSON.stringify(e.detail));
+      var k = e.detail.key, v = e.detail.value;
+      var grating = document.getElementById('gratingDemo');
+      if (k === 'grating') { v ? grating.on() : grating.off(); }
+      if (k === 'direction') { grating.setDirection(v); }
+      if (k === 'spacing') { grating.setAttribute('base', v); grating._apply(); }
+      if (k === 'opacity') { grating.setOpacity(v / 100); }
+      if (k === 'scale') {
+        Array.prototype.forEach.call(document.querySelectorAll('lg-card, lg-stat'), function (c) {
+          c.setAttribute('scale', (v / 100).toFixed(2));
+        });
+      }
+    });
+  })();
+</script>
+</body>
+</html>

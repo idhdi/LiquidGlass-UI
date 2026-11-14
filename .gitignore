@@ -1,0 +1,7 @@
+# local preview / verification artifacts
+node_modules/
+shots/
+*-report.json
+VERIFICATION.md
+*.log
+.DS_Store
