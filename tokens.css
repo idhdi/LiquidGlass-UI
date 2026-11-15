@@ -5,31 +5,36 @@
    - 玻璃：高透明 + 彩色泛光，非中性克制（区别于 Apple 系）
    - 水感：水滴、雨滴、波纹作为组件签名动效
    - 场景：数据面板、汇报页、产品演示
+   - 色彩：oklch 感知均匀色域，渐变中间色不发灰
    ============================================================ */
 
 :root {
-  /* ---------- 玻璃材质 ---------- */
-  --lg-glass-bg: rgba(255, 255, 255, 0.12);
-  --lg-glass-bg-strong: rgba(255, 255, 255, 0.22);
-  --lg-glass-bg-soft: rgba(255, 255, 255, 0.06);
-  --lg-glass-border: rgba(255, 255, 255, 0.35);
-  --lg-glass-highlight: rgba(255, 255, 255, 0.6);
-  --lg-glass-shadow: rgba(0, 0, 0, 0.25);
+  /* ---------- 玻璃材质（oklch，中性透明） ---------- */
+  --lg-glass-bg: oklch(1 0 0 / 0.12);
+  --lg-glass-bg-strong: oklch(1 0 0 / 0.22);
+  --lg-glass-bg-soft: oklch(1 0 0 / 0.06);
+  --lg-glass-border: oklch(1 0 0 / 0.35);
+  --lg-glass-highlight: oklch(1 0 0 / 0.6);
+  --lg-glass-shadow: oklch(0 0 0 / 0.25);
   --lg-blur: blur(20px) saturate(180%);
 
-  /* ---------- 颜色 ---------- */
-  --lg-text: #ffffff;
-  --lg-text-secondary: rgba(255, 255, 255, 0.72);
-  --lg-text-muted: rgba(255, 255, 255, 0.5);
-  --lg-accent: #5ec8ff;            /* 主强调色（青） */
-  --lg-accent-2: #7873f5;          /* 次强调色（紫） */
-  --lg-success: #4ade80;
-  --lg-warning: #fbbf24;
-  --lg-danger: #ff6b81;
+  /* ---------- 颜色（oklch：恒定明度插值） ---------- */
+  --lg-text: oklch(1 0 0);
+  --lg-text-secondary: oklch(1 0 0 / 0.72);
+  --lg-text-muted: oklch(1 0 0 / 0.5);
+  --lg-accent: oklch(0.70 0.13 230);     /* 主强调色（青） */
+  --lg-accent-2: oklch(0.64 0.21 285);   /* 次强调色（紫） */
+  --lg-success: oklch(0.80 0.17 150);
+  --lg-warning: oklch(0.84 0.16 85);
+  --lg-danger: oklch(0.70 0.20 20);
 
-  /* ---------- 渐变背景（页面场景层） ---------- */
+  /* ---------- 渐变背景（oklch 插值，中间色纯净） ---------- */
   --lg-scene:
-    linear-gradient(120deg, #ff6ec4, #7873f5, #4ade80, #38bdf8);
+    linear-gradient(120deg in oklch,
+      oklch(0.66 0.20 340),
+      oklch(0.56 0.20 290),
+      oklch(0.68 0.17 155),
+      oklch(0.70 0.13 230));
   --lg-scene-size: 300% 300%;
 
   /* ---------- 圆角 / 间距 / 动效 ---------- */

@@ -31,12 +31,12 @@
 .lg-btn:focus-visible { outline: 2px solid var(--lg-accent); outline-offset: 3px; }
 
 .lg-btn--primary {
-  background: linear-gradient(135deg, rgba(94,200,255,0.85), rgba(120,115,245,0.85));
+  background: linear-gradient(135deg in oklch, oklch(0.80 0.14 230 / 0.85), oklch(0.64 0.21 285 / 0.85));
   border-color: rgba(255,255,255,0.5);
   box-shadow: 0 4px 16px rgba(94,200,255,0.25);
 }
 .lg-btn--primary:hover {
-  background: linear-gradient(135deg, rgba(94,200,255,1), rgba(120,115,245,1));
+  background: linear-gradient(135deg in oklch, oklch(0.80 0.14 230), oklch(0.64 0.21 285));
   box-shadow: 0 6px 24px rgba(94,200,255,0.4);
 }
 .lg-btn--primary::after {           /* 流光扫过 */
@@ -51,9 +51,9 @@
 }
 .lg-btn--primary:hover::after { transform: translateX(100%) skewX(-15deg); }
 
-.lg-btn--success { background: linear-gradient(135deg, rgba(74,222,128,0.85), rgba(94,200,255,0.75)); }
-.lg-btn--warning { background: linear-gradient(135deg, rgba(251,191,36,0.85), rgba(255,110,180,0.7)); }
-.lg-btn--danger  { background: linear-gradient(135deg, rgba(255,107,129,0.9), rgba(120,115,245,0.75)); }
+.lg-btn--success { background: linear-gradient(135deg in oklch, oklch(0.80 0.17 150 / 0.85), oklch(0.80 0.14 230 / 0.75)); }
+.lg-btn--warning { background: linear-gradient(135deg in oklch, oklch(0.84 0.16 85 / 0.85), oklch(0.72 0.20 350 / 0.7)); }
+.lg-btn--danger  { background: linear-gradient(135deg in oklch, oklch(0.70 0.20 20 / 0.9), oklch(0.64 0.21 285 / 0.75)); }
 .lg-btn--ghost   { background: transparent; backdrop-filter: none; box-shadow: none; }
 
 .lg-btn--sm { padding: 8px 14px; font-size: 13px; }
@@ -171,7 +171,7 @@
 }
 .lg-check input:checked + .box,
 .lg-radio input:checked + .box {
-  background: linear-gradient(135deg, rgba(94,200,255,0.9), rgba(120,115,245,0.9));
+  background: linear-gradient(135deg in oklch, oklch(0.80 0.14 230 / 0.9), oklch(0.64 0.21 285 / 0.9));
   border-color: transparent;
   box-shadow: 0 0 12px rgba(94,200,255,0.4);
 }
@@ -207,7 +207,7 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.3);
   transition: left 0.4s var(--lg-ease);
 }
-.lg-switch.on { background: rgba(94,200,255,0.7); }
+.lg-switch.on { background: oklch(0.80 0.14 230 / 0.7); }
 .lg-switch.on::after { left: 22px; }
 .lg-switch-row {
   display: flex;
@@ -247,7 +247,7 @@
 .lg-tab:hover { color: var(--lg-text); }
 .lg-tab.active {
   color: var(--lg-text);
-  background: linear-gradient(135deg, rgba(94,200,255,0.7), rgba(120,115,245,0.7));
+  background: linear-gradient(135deg in oklch, oklch(0.80 0.14 230 / 0.7), oklch(0.64 0.21 285 / 0.7));
   box-shadow: 0 2px 12px rgba(94,200,255,0.3);
 }
 
@@ -269,10 +269,10 @@
   color: var(--lg-text);
   white-space: nowrap;
 }
-.lg-badge--accent  { background: rgba(94,200,255,0.45); }
-.lg-badge--success { background: rgba(74,222,128,0.4); }
-.lg-badge--warning { background: rgba(251,191,36,0.4); }
-.lg-badge--danger  { background: rgba(255,107,129,0.45); }
+.lg-badge--accent  { background: oklch(0.80 0.14 230 / 0.45); }
+.lg-badge--success { background: oklch(0.80 0.17 150 / 0.4); }
+.lg-badge--warning { background: oklch(0.84 0.16 85 / 0.4); }
+.lg-badge--danger  { background: oklch(0.70 0.20 20 / 0.45); }
 .lg-badge--dot::before {
   content: "";
   width: 6px;
@@ -346,7 +346,7 @@
 .lg-progress__bar {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, rgba(94,200,255,0.9), rgba(120,115,245,0.9));
+  background: linear-gradient(90deg in oklch, oklch(0.80 0.14 230 / 0.9), oklch(0.64 0.21 285 / 0.9));
   box-shadow: 0 0 12px rgba(94,200,255,0.5);
   transition: width 0.6s var(--lg-ease-smooth);
   position: relative;
@@ -385,7 +385,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(94,200,255,1), rgba(120,115,245,1));
+  background: linear-gradient(135deg in oklch, oklch(0.80 0.14 230), oklch(0.64 0.21 285));
   box-shadow: 0 0 12px rgba(94,200,255,0.6), 0 2px 6px rgba(0,0,0,0.25);
   cursor: pointer;
   transition: transform 0.15s var(--lg-ease);
@@ -396,7 +396,7 @@
   height: 20px;
   border-radius: 50%;
   border: 0;
-  background: linear-gradient(135deg, rgba(94,200,255,1), rgba(120,115,245,1));
+  background: linear-gradient(135deg in oklch, oklch(0.80 0.14 230), oklch(0.64 0.21 285));
   box-shadow: 0 0 12px rgba(94,200,255,0.6);
   cursor: pointer;
 }

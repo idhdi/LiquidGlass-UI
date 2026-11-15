@@ -1,6 +1,6 @@
 {
   "name": "liquidglass-ui",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "水感液态玻璃组件库 - Liquid Glass UI Web Components (Module A: gooey, fresnel, depth, caustics, droplet physics; zero dependency)",
   "main": "wc/liquidglass-ui.js",
   "module": "wc/liquidglass-ui.js",

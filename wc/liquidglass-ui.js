@@ -23,28 +23,32 @@
    ============================================================ */
 
 :host, :root {
-  /* ---------- 玻璃材质 ---------- */
-  --lg-glass-bg: rgba(255, 255, 255, 0.12);
-  --lg-glass-bg-strong: rgba(255, 255, 255, 0.22);
-  --lg-glass-bg-soft: rgba(255, 255, 255, 0.06);
-  --lg-glass-border: rgba(255, 255, 255, 0.35);
-  --lg-glass-highlight: rgba(255, 255, 255, 0.6);
-  --lg-glass-shadow: rgba(0, 0, 0, 0.25);
+  /* ---------- 玻璃材质（oklch，保持中性透明） ---------- */
+  --lg-glass-bg: oklch(1 0 0 / 0.12);
+  --lg-glass-bg-strong: oklch(1 0 0 / 0.22);
+  --lg-glass-bg-soft: oklch(1 0 0 / 0.06);
+  --lg-glass-border: oklch(1 0 0 / 0.35);
+  --lg-glass-highlight: oklch(1 0 0 / 0.6);
+  --lg-glass-shadow: oklch(0 0 0 / 0.25);
   --lg-blur: blur(20px) saturate(180%);
 
-  /* ---------- 颜色 ---------- */
-  --lg-text: #ffffff;
-  --lg-text-secondary: rgba(255, 255, 255, 0.72);
-  --lg-text-muted: rgba(255, 255, 255, 0.5);
-  --lg-accent: #5ec8ff;            /* 主强调色（青） */
-  --lg-accent-2: #7873f5;          /* 次强调色（紫） */
-  --lg-success: #4ade80;
-  --lg-warning: #fbbf24;
-  --lg-danger: #ff6b81;
+  /* ---------- 颜色（oklch：感知均匀，渐变不发灰） ---------- */
+  --lg-text: oklch(1 0 0);
+  --lg-text-secondary: oklch(1 0 0 / 0.72);
+  --lg-text-muted: oklch(1 0 0 / 0.5);
+  --lg-accent: oklch(0.70 0.13 230);     /* 主强调色（青） */
+  --lg-accent-2: oklch(0.64 0.21 285);   /* 次强调色（紫） */
+  --lg-success: oklch(0.80 0.17 150);
+  --lg-warning: oklch(0.84 0.16 85);
+  --lg-danger: oklch(0.70 0.20 20);
 
-  /* ---------- 渐变背景（页面场景层） ---------- */
+  /* ---------- 渐变背景（oklch 插值，中间色纯净） ---------- */
   --lg-scene:
-    linear-gradient(120deg, #ff6ec4, #7873f5, #4ade80, #38bdf8);
+    linear-gradient(120deg in oklch,
+      oklch(0.66 0.20 340),
+      oklch(0.56 0.20 290),
+      oklch(0.68 0.17 155),
+      oklch(0.70 0.13 230));
   --lg-scene-size: 300% 300%;
 
   /* ---------- 圆角 / 间距 / 动效 ---------- */
@@ -78,22 +82,37 @@
 /* ---------- 页面场景 ---------- */
 .lg-scene {
   min-height: 100vh;
-  background: var(--lg-scene);
-  background-size: var(--lg-scene-size);
-  animation: lg-scene-shift 18s ease infinite;
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+  background: #0b1220;
   padding: 40px 20px 100px;
   color: var(--lg-text);
   font-family: var(--lg-font);
   box-sizing: border-box;
+}
+.lg-scene::before {
+  content: "";
+  position: absolute;
+  inset: -15% 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(4, 8, 16, 0.10), rgba(4, 8, 16, 0.42) 55%, rgba(4, 8, 16, 0.62)),
+    var(--lg-scene);
+  background-size: 100% 100%;
+  animation: lg-scene-shift 18s ease infinite;
+  transform: translateZ(0);
+  will-change: transform;
 }
 .lg-scene *,
 .lg-scene *::before,
 .lg-scene *::after { box-sizing: border-box; }
 
 @keyframes lg-scene-shift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0%   { transform: translate3d(0, -1%, 0) scaleY(1.04); }
+  50%  { transform: translate3d(0, 1%, 0) scaleY(1.1); }
+  100% { transform: translate3d(0, -1%, 0) scaleY(1.04); }
 }
 
 /* ---------- 玻璃面板核心 ---------- */
@@ -111,6 +130,7 @@
     inset 0 1px 1px var(--lg-glass-highlight),
     inset 0 -1px 1px rgba(0,0,0,0.05);
   overflow: hidden;
+  contain: layout paint style;
 }
 
 /* 顶部斜向液面高光 */
@@ -143,6 +163,7 @@
   pointer-events: none;
   animation: lg-sheen 11s ease-in-out infinite;
   z-index: 1;
+  will-change: transform;
 }
 @keyframes lg-sheen {
   0%   { transform: translate(-25%, -25%) rotate(0deg); opacity: 0.9; }
@@ -150,24 +171,27 @@
   100% { transform: translate(-25%, -25%) rotate(320deg); opacity: 0.9; }
 }
 
-/* 液态增强 1：顶部斜向流光（模拟液体表面反光流动） */
+/* 液态增强 1：顶部斜向流光（transform 驱动，GPU 合成不重绘） */
 .lg-glass .lg-liquid-flow {
-  content: "";
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: -75%;
+  width: 250%;
   border-radius: inherit;
   pointer-events: none;
   z-index: 1;
   background: linear-gradient(115deg,
-    transparent 0%, transparent 30%,
-    rgba(255,255,255,0.10) 42%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0.10) 58%,
-    transparent 70%, transparent 100%);
-  background-size: 250% 100%;
+    transparent 0%, transparent 28%,
+    rgba(255,255,255,0.10) 40%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0.10) 60%,
+    transparent 72%, transparent 100%);
   animation: lg-liquid-sweep 6s ease-in-out infinite;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 @keyframes lg-liquid-sweep {
-  0%   { background-position: 120% 0; }
-  100% { background-position: -120% 0; }
+  0%   { transform: translate3d(-23%, 0, 0); }
+  100% { transform: translate3d(23%, 0, 0); }
 }
 
 /* 液态增强 2：边缘水波纹（内圈细波纹，模拟水在玻璃边缘荡漾） */
@@ -339,7 +363,7 @@
   opacity: 0.9;
   animation: lg-droplet-pulse var(--dur, 5s) ease-in-out infinite;
   animation-delay: var(--d, 0s);
-  will-change: opacity;
+  will-change: transform, opacity;
 }
 @keyframes lg-droplet-pulse {
   0%, 100% { opacity: 0.75; }
@@ -416,12 +440,12 @@
 .lg-btn:focus-visible { outline: 2px solid var(--lg-accent); outline-offset: 3px; }
 
 .lg-btn--primary {
-  background: linear-gradient(135deg, rgba(94,200,255,0.85), rgba(120,115,245,0.85));
+  background: linear-gradient(135deg in oklch, oklch(0.80 0.14 230 / 0.85), oklch(0.64 0.21 285 / 0.85));
   border-color: rgba(255,255,255,0.5);
   box-shadow: 0 4px 16px rgba(94,200,255,0.25);
 }
 .lg-btn--primary:hover {
-  background: linear-gradient(135deg, rgba(94,200,255,1), rgba(120,115,245,1));
+  background: linear-gradient(135deg in oklch, oklch(0.70 0.13 230), oklch(0.64 0.21 285));
   box-shadow: 0 6px 24px rgba(94,200,255,0.4);
 }
 .lg-btn--primary::after {           /* 流光扫过 */
@@ -436,9 +460,9 @@
 }
 .lg-btn--primary:hover::after { transform: translateX(100%) skewX(-15deg); }
 
-.lg-btn--success { background: linear-gradient(135deg, rgba(74,222,128,0.85), rgba(94,200,255,0.75)); }
-.lg-btn--warning { background: linear-gradient(135deg, rgba(251,191,36,0.85), rgba(255,110,180,0.7)); }
-.lg-btn--danger  { background: linear-gradient(135deg, rgba(255,107,129,0.9), rgba(120,115,245,0.75)); }
+.lg-btn--success { background: linear-gradient(135deg in oklch, oklch(0.80 0.17 150 / 0.85), oklch(0.80 0.14 230 / 0.75)); }
+.lg-btn--warning { background: linear-gradient(135deg in oklch, oklch(0.84 0.16 85 / 0.85), oklch(0.72 0.20 350 / 0.7)); }
+.lg-btn--danger  { background: linear-gradient(135deg in oklch, oklch(0.70 0.20 20 / 0.9), oklch(0.64 0.21 285 / 0.75)); }
 .lg-btn--ghost   { background: transparent; backdrop-filter: none; box-shadow: none; }
 
 .lg-btn--sm { padding: 8px 14px; font-size: 13px; }
@@ -592,7 +616,7 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.3);
   transition: left 0.4s var(--lg-ease);
 }
-.lg-switch.on { background: rgba(94,200,255,0.7); }
+.lg-switch.on { background: oklch(0.80 0.14 230 / 0.7); }
 .lg-switch.on::after { left: 22px; }
 .lg-switch-row {
   display: flex;
@@ -616,6 +640,7 @@
   -webkit-backdrop-filter: var(--lg-blur);
   border: 1px solid var(--lg-glass-border);
   width: fit-content;
+  contain: layout paint;
 }
 .lg-tab {
   font-family: inherit;
@@ -632,7 +657,7 @@
 .lg-tab:hover { color: var(--lg-text); }
 .lg-tab.active {
   color: var(--lg-text);
-  background: linear-gradient(135deg, rgba(94,200,255,0.7), rgba(120,115,245,0.7));
+  background: linear-gradient(135deg in oklch, oklch(0.80 0.14 230 / 0.7), oklch(0.64 0.21 285 / 0.7));
   box-shadow: 0 2px 12px rgba(94,200,255,0.3);
 }
 
@@ -654,10 +679,10 @@
   color: var(--lg-text);
   white-space: nowrap;
 }
-.lg-badge--accent  { background: rgba(94,200,255,0.45); }
-.lg-badge--success { background: rgba(74,222,128,0.4); }
-.lg-badge--warning { background: rgba(251,191,36,0.4); }
-.lg-badge--danger  { background: rgba(255,107,129,0.45); }
+.lg-badge--accent  { background: oklch(0.80 0.14 230 / 0.45); }
+.lg-badge--success { background: oklch(0.80 0.17 150 / 0.4); }
+.lg-badge--warning { background: oklch(0.84 0.16 85 / 0.4); }
+.lg-badge--danger  { background: oklch(0.70 0.20 20 / 0.45); }
 .lg-badge--dot::before {
   content: "";
   width: 6px;
@@ -730,7 +755,7 @@
 .lg-progress__bar {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, rgba(94,200,255,0.9), rgba(120,115,245,0.9));
+  background: linear-gradient(90deg in oklch, oklch(0.80 0.14 230 / 0.9), oklch(0.64 0.21 285 / 0.9));
   box-shadow: 0 0 12px rgba(94,200,255,0.5);
   transition: width 0.6s var(--lg-ease-smooth);
   position: relative;
@@ -769,7 +794,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(94,200,255,1), rgba(120,115,245,1));
+  background: linear-gradient(135deg in oklch, oklch(0.70 0.13 230), oklch(0.64 0.21 285));
   box-shadow: 0 0 12px rgba(94,200,255,0.6), 0 2px 6px rgba(0,0,0,0.25);
   cursor: pointer;
   transition: transform 0.15s var(--lg-ease);
@@ -780,7 +805,7 @@
   height: 20px;
   border-radius: 50%;
   border: 0;
-  background: linear-gradient(135deg, rgba(94,200,255,1), rgba(120,115,245,1));
+  background: linear-gradient(135deg in oklch, oklch(0.70 0.13 230), oklch(0.64 0.21 285));
   box-shadow: 0 0 12px rgba(94,200,255,0.6);
   cursor: pointer;
 }
@@ -934,7 +959,8 @@
       if (disabled) btn.disabled = true;
       btn.innerHTML = '<slot></slot>';
 
-      this.attachShadow({ mode: 'open' }).innerHTML = '<style>' + LG_CSS + '</style>';
+      const sh = this.attachShadow({ mode: 'open' });
+      applyStyles(sh);
       this.shadowRoot.appendChild(btn);
 
       btn.addEventListener('click', () => {
@@ -1075,12 +1101,12 @@
       trail.className = 'lg-wet-trail';
       trail.style.left = (x - 1.5) + 'px';
       trail.style.top = (y + dr.height * 0.55) + 'px';
-      trail.style.height = '0px';
+      trail.style.height = (dist + 18) + 'px';
       rootEl.appendChild(trail);
       trail.animate([
-        { height: '0px', opacity: 0.55 },
-        { height: (dist + 10) + 'px', opacity: 0.32, offset: 0.7 },
-        { height: (dist + 18) + 'px', opacity: 0 },
+        { transform: 'scaleY(0)', opacity: 0.55 },
+        { transform: 'scaleY(0.72)', opacity: 0.32, offset: 0.7 },
+        { transform: 'scaleY(1)', opacity: 0 },
       ], { duration: 2300, easing: 'cubic-bezier(0.4, 0, 0.6, 1)' }).onfinish = function () { trail.remove(); };
       const anim = d.animate([
         { transform: 'translate(0, 0) scale(1, 1)', opacity: 1 },
@@ -1115,7 +1141,6 @@
       const sh = this.attachShadow({ mode: 'open' });
       const s = parseFloat(this.getAttribute('scale') || '1');
       sh.innerHTML =
-        '<style>' + LG_CSS + '</style>' +
         '<div class="lg-glass lg-card" style="height:100%;--lg-scale:' + s + ';">' +
         '<span class="lg-caustics" aria-hidden="true"></span>' +
         '<span class="lg-spotlight" aria-hidden="true"></span>' +
@@ -1133,6 +1158,7 @@
         '</span>' +
         '<div class="lg-card__body" style="position:relative;z-index:4;"><slot></slot></div>' +
         '</div>';
+      applyStyles(sh);
       attachGlassInteractions(this, sh.querySelector('.lg-card'));
     }
     attributeChangedCallback(name, oldV, newV) {
@@ -1160,7 +1186,8 @@
       input.placeholder = this.getAttribute('placeholder') || '';
       if (this.hasAttribute('disabled')) input.disabled = true;
 
-      this.attachShadow({ mode: 'open' }).innerHTML = '<style>' + LG_CSS + '</style>';
+      const sh = this.attachShadow({ mode: 'open' });
+      applyStyles(sh);
       this.shadowRoot.appendChild(input);
 
       input.addEventListener('input', () => {
@@ -1188,7 +1215,8 @@
       const sel = document.createElement('select');
       sel.className = 'lg-select';
       sel.innerHTML = slotted;
-      this.attachShadow({ mode: 'open' }).innerHTML = '<style>' + LG_CSS + '</style>';
+      const sh = this.attachShadow({ mode: 'open' });
+      applyStyles(sh);
       this.shadowRoot.appendChild(sel);
       sel.addEventListener('change', () => {
         this.dispatchEvent(new CustomEvent('lg-change', { detail: { value: sel.value }, bubbles: true, composed: true }));
@@ -1231,7 +1259,8 @@
       row.appendChild(label);
       row.appendChild(sw);
 
-      this.attachShadow({ mode: 'open' }).innerHTML = '<style>' + LG_CSS + '</style>';
+      const sh = this.attachShadow({ mode: 'open' });
+      applyStyles(sh);
       this.shadowRoot.appendChild(row);
 
       sw.addEventListener('click', () => {
@@ -1265,7 +1294,8 @@
       const badge = document.createElement('span');
       badge.className = cls.join(' ');
       badge.innerHTML = '<slot></slot>';
-      this.attachShadow({ mode: 'open' }).innerHTML = '<style>' + LG_CSS + '</style>';
+      const sh = this.attachShadow({ mode: 'open' });
+      applyStyles(sh);
       this.shadowRoot.appendChild(badge);
     }
   }
@@ -1285,7 +1315,6 @@
       const s = parseFloat(this.getAttribute('scale') || '1');
       const sh = this.attachShadow({ mode: 'open' });
       sh.innerHTML =
-        '<style>' + LG_CSS + '</style>' +
         '<div class="lg-glass lg-stat" style="--lg-scale:' + s + ';">' +
         '<span class="lg-caustics" aria-hidden="true"></span>' +
         '<span class="lg-spotlight" aria-hidden="true"></span>' +
@@ -1297,6 +1326,7 @@
         '<span class="lg-stat__value">' + (this.getAttribute('value') || '') + '</span>' +
         (delta ? '<span class="lg-stat__delta ' + trendCls + '">' + arrow + ' ' + delta + '</span>' : '') +
         '</div>';
+      applyStyles(sh);
       attachGlassInteractions(this, sh.querySelector('.lg-stat'));
     }
     attributeChangedCallback(name, oldV, newV) {
@@ -1324,7 +1354,8 @@
       bar.className = 'lg-progress__bar';
       bar.style.width = v + '%';
       wrap.appendChild(bar);
-      this.attachShadow({ mode: 'open' }).innerHTML = '<style>' + LG_CSS + '</style>';
+      const sh = this.attachShadow({ mode: 'open' });
+      applyStyles(sh);
       this.shadowRoot.appendChild(wrap);
     }
     setValue(v) {
@@ -1344,7 +1375,6 @@
       const uid = 'lg-tabs-goo-' + (++gooSeq);
       const sh = this.attachShadow({ mode: 'open' });
       sh.innerHTML =
-        '<style>' + LG_CSS + '</style>' +
         '<svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>' +
         '<filter id="' + uid + '" x="-30%" y="-70%" width="160%" height="240%">' +
         '<feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>' +
@@ -1357,6 +1387,7 @@
         '</div>' +
         '<div class="lg-tabs__slot"><slot></slot></div>' +
         '</div>';
+      applyStyles(sh);
 
       this._tabsEl = sh.querySelector('.lg-tabs');
       this._blob = sh.querySelector('.lg-tabs__blob');
@@ -1423,7 +1454,8 @@
       const btn = document.createElement('button');
       btn.className = 'lg-tab';
       btn.innerHTML = '<slot></slot>';
-      this.attachShadow({ mode: 'open' }).innerHTML = '<style>' + LG_CSS + '</style>';
+      const sh = this.attachShadow({ mode: 'open' });
+      applyStyles(sh);
       this.shadowRoot.appendChild(btn);
       btn.addEventListener('click', () => {
         this.dispatchEvent(new CustomEvent('lg-tab-select', { bubbles: true, composed: true }));
@@ -1451,9 +1483,9 @@
       const icon = this.getAttribute('icon') || icons[type] || '•';
       const sh = this.attachShadow({ mode: 'open' });
       sh.innerHTML =
-        '<style>' + LG_CSS + '</style>' +
         '<div class="lg-toast lg-toast--' + type + '">' +
         '<span class="lg-toast__icon">' + icon + '</span><span><slot></slot></span></div>';
+      applyStyles(sh);
     }
   }
 
@@ -1468,6 +1500,7 @@
   position: absolute; inset: 0;
   pointer-events: none; z-index: 6;
   overflow: hidden; border-radius: inherit;
+  contain: layout paint;
 }
 /* 全局模式：覆盖整个视口，雨滴落在所有组件之上 */
 .lg-rain.lg-rain--global {
@@ -1495,6 +1528,8 @@
     radial-gradient(circle at 45% 45%, rgba(200,225,255,0.08), rgba(170,200,240,0.04) 55%, rgba(140,175,225,0.06) 100%);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16), inset 0 -3px 5px rgba(255,255,255,0.18), 0 2px 3px rgba(0,0,0,0.14);
   opacity: 0;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
   animation: rainFall var(--rdur, 5s) cubic-bezier(0.45, 0, 0.8, 1) infinite;
   animation-delay: var(--rdelay, 0s);
 }
@@ -1507,10 +1542,10 @@
   filter: blur(0.4px);
 }
 @keyframes rainFall {
-  0%   { top: -14%; transform: scale(0.8, 1); opacity: 0; }
+  0%   { transform: translate3d(0, 0, 0) scale(0.8, 1); opacity: 0; }
   8%   { opacity: 0.9; }
-  82%  { top: 102%; transform: scale(1, 1.3); opacity: 0.65; }
-  100% { top: 106%; transform: scale(1, 1.3); opacity: 0; }
+  82%  { transform: translate3d(0, calc(var(--rain-fall, 600px) * 0.9), 0) scale(1, 1.3); opacity: 0.65; }
+  100% { transform: translate3d(0, var(--rain-fall, 600px), 0) scale(1, 1.3); opacity: 0; }
 }
 
 /* 四边溅水（快速雨滴砸落） */
@@ -1570,11 +1605,6 @@
   90%     { transform: translate(var(--sp-fx, 12px), var(--sp-fy, -26px)) scale(0.4); opacity: 0.45; }
   100%    { transform: translate(calc(var(--sp-fx, 12px) * 1.6), calc(var(--sp-fy, -26px) * 1.35)) scale(0.12); opacity: 0; }
 }
-@keyframes gratingFlow {
-  0%   { background-position: 0 0; }
-  100% { background-position: var(--g-period, 120px) 0; }
-}
-
 /* ===== 全局整齐光栅 (Grating) =====
    固定在背景层：铺满全屏、位于场景渐变之上、内容之下，
    透过半透明玻璃组件可见，形成"玻璃上的衍射光栅"。 */
@@ -1584,6 +1614,7 @@
   mix-blend-mode: screen;
   opacity: var(--g-opacity, 0.45);
   transition: opacity 0.4s ease;
+  contain: layout paint;
 }
 .lg-grating.off { opacity: 0; }
 
@@ -1595,6 +1626,7 @@
   width: 224px;
   padding: 14px 16px;
   display: flex; flex-direction: column; gap: 4px;
+  contain: layout paint;
 }
 .lg-controls__title {
   font-size: 11px; color: rgba(255,255,255,0.6);
@@ -1705,11 +1737,13 @@
   animation: lg-caustic-flow 26s linear infinite;
   filter: blur(0.6px) saturate(1.25);
   transition: opacity 0.35s ease, transform 0.18s ease-out;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 @keyframes lg-caustic-flow {
-  0%   { background-position: 0 0, 0 0, 50% 50%; }
-  50%  { background-position: 64px 42px, -84px 32px, 50% 50%; }
-  100% { background-position: 0 0, 0 0, 50% 50%; }
+  0%   { transform: translate3d(-2%, -1%, 0) rotate(0deg); }
+  50%  { transform: translate3d(2%, 1.5%, 0) rotate(0.6deg); }
+  100% { transform: translate3d(-2%, -1%, 0) rotate(0deg); }
 }
 .lg-glass:hover .lg-caustics { opacity: 0.78; }
 
@@ -1821,24 +1855,65 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 .lg-switch__blob {
-  left: var(--sw-left, 2px);
-  transition: left 0.42s var(--lg-ease);
+  left: 0;
+  transform: translate3d(var(--sw-left, 2px), 0, 0);
+  transition: transform 0.42s var(--lg-ease);
+  will-change: transform;
 }
 .lg-switch__tail {
-  left: var(--sw-left, 2px);
+  left: 0;
+  transform: translate3d(var(--sw-left, 2px), 0, 0);
   opacity: 0.88;
   filter: blur(0.2px);
-  transition: left 0.3s 0.06s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s 0.06s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .lg-switch--anim .lg-switch__blob { animation: lg-goo-knob 0.5s var(--lg-ease); }
 @keyframes lg-goo-knob {
-  0%   { transform: scale(1, 1); }
-  35%  { transform: scale(1.32, 0.78); }
-  70%  { transform: scale(0.9, 1.12); }
-  100% { transform: scale(1, 1); }
+  0%   { transform: translate3d(var(--sw-left, 2px), 0, 0) scale(1, 1); }
+  35%  { transform: translate3d(var(--sw-left, 2px), 0, 0) scale(1.32, 0.78); }
+  70%  { transform: translate3d(var(--sw-left, 2px), 0, 0) scale(0.9, 1.12); }
+  100% { transform: translate3d(var(--sw-left, 2px), 0, 0) scale(1, 1); }
 }
 `;
 
+
+  /* ============================================================
+     共享样式表 (Shared CSSOM)
+     所有 Shadow Root 复用同一份 CSSStyleSheet，避免每个实例
+     重复解析 ~33KB 字符串；不支持 Constructable Stylesheets 时兜底。
+     ============================================================ */
+  var SHARED_SHEET = null;
+  var LENS_SHEET = null;
+  var sharedSheetsReady = false;
+
+  function getSharedSheets() {
+    if (sharedSheetsReady) return;
+    sharedSheetsReady = true;
+    try {
+      if (typeof CSSStyleSheet === 'function' && 'replaceSync' in CSSStyleSheet.prototype) {
+        SHARED_SHEET = new CSSStyleSheet();
+        SHARED_SHEET.replaceSync(LG_CSS);
+        if (typeof LENS_EXTRA_CSS === 'string') {
+          LENS_SHEET = new CSSStyleSheet();
+          LENS_SHEET.replaceSync(LENS_EXTRA_CSS);
+        }
+      }
+    } catch (e) {
+      SHARED_SHEET = null;
+      LENS_SHEET = null;
+    }
+  }
+
+  function applyStyles(sh, withLens) {
+    getSharedSheets();
+    if (SHARED_SHEET) {
+      sh.adoptedStyleSheets = withLens && LENS_SHEET ? [SHARED_SHEET, LENS_SHEET] : [SHARED_SHEET];
+      return;
+    }
+    var style = document.createElement('style');
+    style.textContent = LG_CSS + (withLens && typeof LENS_EXTRA_CSS === 'string' ? LENS_EXTRA_CSS : '');
+    sh.prepend(style);
+  }
 
   /* ============================================================
      <lg-rain>  雨滴装饰层
@@ -1852,7 +1927,7 @@
       const sh = this.attachShadow({ mode: 'open' });
       const density = Math.max(2, Math.min(8, parseInt(this.getAttribute('density'), 10) || 4));
       const isGlobal = this.hasAttribute('global');
-      let html = '<style>' + LG_CSS + '</style><div class="lg-rain' + (isGlobal ? ' lg-rain--global' : '') + '">';
+      let html = '<div class="lg-rain' + (isGlobal ? ' lg-rain--global' : '') + '">';
 
       // 凝结水珠
       html += '<span class="lg-droplets" aria-hidden="true">';
@@ -1885,6 +1960,24 @@
       }
       html += '</div>';
       sh.innerHTML = html;
+      applyStyles(sh);
+
+      // GPU 滑落距离：用 --rain-fall 让雨滴只做 transform，不触发 top 布局
+      var rainEl = sh.querySelector('.lg-rain');
+      var self = this;
+      var updateRainFall = function () {
+        if (!rainEl) return;
+        if (isGlobal) {
+          rainEl.style.setProperty('--rain-fall', '100vh');
+          return;
+        }
+        var h = (self.parentElement ? self.parentElement.getBoundingClientRect().height : 0) || 600;
+        rainEl.style.setProperty('--rain-fall', Math.max(120, Math.round(h + 40)) + 'px');
+      };
+      updateRainFall();
+      if (!isGlobal && window.ResizeObserver && this.parentElement) {
+        new ResizeObserver(updateRainFall).observe(this.parentElement);
+      }
     }
     setDensity(n) { /* 简化：动态调整由 re-render 完成 */ }
   }
@@ -1899,7 +1992,8 @@
     connectedCallback() {
       if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const sh = this.attachShadow({ mode: 'open' });
-      sh.innerHTML = '<style>' + LG_CSS + '</style><div class="lg-grating" id="g"></div>';
+      sh.innerHTML = '<div class="lg-grating" id="g"></div>';
+      applyStyles(sh);
       this._el = sh.querySelector('#g');
       this._apply();
     }
@@ -1944,7 +2038,6 @@
       if (this.shadowRoot) return;   // 幂等：DOM 移动/重插时不要二次 attachShadow
       const sh = this.attachShadow({ mode: 'open' });
       sh.innerHTML =
-        '<style>' + LG_CSS + '</style>' +
         '<div class="lg-glass lg-controls">' +
         '<div class="lg-controls__title">◇ 效果调控</div>' +
         '<div class="lg-controls__row"><span>雨滴</span><div class="lg-switch on" data-k="rain"></div></div>' +
@@ -1962,6 +2055,7 @@
         '<input class="lg-controls__slider" type="range" min="60" max="120" value="100" data-k="scale">' +
         '<span class="lg-controls__value" data-v="scale">100</span></div>' +
         '</div>';
+      applyStyles(sh);
 
       const emit = (key, value) => {
         this.dispatchEvent(new CustomEvent('lg-control', { detail: { key, value }, bubbles: true, composed: true }));
@@ -2062,7 +2156,6 @@
       if (/^\d+(\.\d+)?$/.test(height)) height += 'px';   // 兼容 height="420" 的旧写法
       var sh = this.attachShadow({ mode: 'open' });
       sh.innerHTML =
-        '<style>' + LG_CSS + LENS_EXTRA_CSS + '</style>' +
         '<div class="lg-lens" style="width:' + width + ';height:' + height + ';">' +
         '  <div class="lg-lens__scene">' +
         '    <div class="lg-lens__blob b1"></div>' +
@@ -2075,6 +2168,7 @@
         '  <div class="lg-lens__frame"></div>' +
         (this.hasAttribute('controls') ? LENS_PANEL_HTML : '') +
         '</div>';
+      applyStyles(sh, true);
 
       self._root = sh;
       self._scene = sh.querySelector('.lg-lens__scene');
@@ -2238,6 +2332,7 @@
   cursor: crosshair;
   isolation: isolate;
   touch-action: none;
+  contain: layout paint style;
 }
 .lg-lens__scene {
   position: absolute;
@@ -2302,16 +2397,19 @@
 .lg-lens__frame::before {
   content: "";
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: -100%;
+  width: 300%;
   border-radius: inherit;
   background: linear-gradient(115deg, transparent 20%, rgba(255,255,255,0.14) 46%, rgba(255,255,255,0.3) 52%, transparent 84%);
-  background-size: 250% 100%;
   animation: lg-lens-scan 7s ease-in-out infinite;
   mix-blend-mode: screen;
+  will-change: transform;
 }
 @keyframes lg-lens-scan {
-  0% { background-position: 130% 0; }
-  100% { background-position: -130% 0; }
+  0% { transform: translate3d(-18%, 0, 0); }
+  100% { transform: translate3d(18%, 0, 0); }
 }
 .lg-lens__panel {
   position: absolute;
@@ -2403,7 +2501,7 @@
   });
 
   window.LiquidGlassUI = {
-    version: '0.2.0',
+    version: '0.3.0',
     components: components,
     css: LG_CSS
   };

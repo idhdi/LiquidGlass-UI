@@ -8,22 +8,38 @@
 /* ---------- 页面场景 ---------- */
 .lg-scene {
   min-height: 100vh;
-  background: var(--lg-scene);
-  background-size: var(--lg-scene-size);
-  animation: lg-scene-shift 18s ease infinite;
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+  background: #0b1220;
   padding: 40px 20px 100px;
   color: var(--lg-text);
   font-family: var(--lg-font);
   box-sizing: border-box;
+}
+/* 流动渐变放进绝对定位伪元素，只做 transform，避免整页 background-position 重绘 */
+.lg-scene::before {
+  content: "";
+  position: absolute;
+  inset: -15% 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(4, 8, 16, 0.10), rgba(4, 8, 16, 0.42) 55%, rgba(4, 8, 16, 0.62)),
+    var(--lg-scene);
+  background-size: 100% 100%;
+  animation: lg-scene-shift 18s ease infinite;
+  transform: translateZ(0);
+  will-change: transform;
 }
 .lg-scene *,
 .lg-scene *::before,
 .lg-scene *::after { box-sizing: border-box; }
 
 @keyframes lg-scene-shift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0%   { transform: translate3d(0, -1%, 0) scaleY(1.04); }
+  50%  { transform: translate3d(0, 1%, 0) scaleY(1.1); }
+  100% { transform: translate3d(0, -1%, 0) scaleY(1.04); }
 }
 
 /* ---------- 玻璃面板核心 ---------- */
@@ -41,6 +57,7 @@
     inset 0 1px 1px var(--lg-glass-highlight),
     inset 0 -1px 1px rgba(0,0,0,0.05);
   overflow: hidden;
+  contain: layout paint style;
 }
 
 /* 顶部斜向液面高光 */
@@ -71,6 +88,7 @@
   pointer-events: none;
   animation: lg-sheen 14s ease-in-out infinite;
   z-index: 1;
+  will-change: transform;
 }
 @keyframes lg-sheen {
   0%   { transform: translate(-30%, -30%) rotate(0deg); opacity: 0.8; }
